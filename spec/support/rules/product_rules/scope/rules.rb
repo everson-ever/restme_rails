@@ -1,0 +1,25 @@
+# frozen_string_literal: true
+
+module ProductRules
+  module Scope
+    class Rules
+      def initialize(klass, current_user, controller_params = {})
+        @klass = klass
+        @current_user = current_user
+        @controller_params = controller_params
+      end
+
+      def client_scope
+        @klass.all
+      end
+
+      def manager_scope
+        @klass.where(establishment_id: @current_user.establishment_id)
+      end
+
+      def super_admin_scope
+        @klass.all
+      end
+    end
+  end
+end

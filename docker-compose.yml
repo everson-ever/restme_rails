@@ -1,0 +1,35 @@
+services:
+  restme_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restme-rails
+    command: /bin/bash
+    tty: true
+    volumes:
+      - .:/var/www/restme_rails
+    mem_limit: 1024mb
+    depends_on:
+      - restme_rails_postgres
+    environment:
+      - DATABASE_HOST=restme_rails_postgres
+  restme_rails_postgres:
+    image: postgres:15.8-alpine
+    container_name: restme_rails_postgres
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+    ports:
+      - "5442:5432"
+    mem_limit: 512mb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USERNAME=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  app:
+  postgres_db:
