@@ -14,6 +14,12 @@ Metrics/BlockLength:
     - spec/lib/restme_controller_spec.rb
     - spec/support/database.rb
 
+Metrics/ClassLength:
+  Exclude:
+    - lib/restme_rails/core/scope/field/rules.rb
+    - lib/restme_rails/core/scope/filter/rules.rb
+    - lib/restme_rails/core/scope/rules.rb
+
 Style/OneClassPerFile:
   Exclude:
     - spec/support/database.rb

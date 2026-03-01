@@ -6,17 +6,6 @@ class EstablishmentsController
   attr_accessor :params, :request, :current_user, :logged_user
   attr_reader :action_name
 
-  class AuthorizationError < StandardError
-    attr_reader :json, :status
-
-    def initialize(json: {}, status: nil)
-      @json = json
-      @status = status
-
-      super
-    end
-  end
-
   def initialize(current_user: nil, logged_user: nil, request: {}, params: {})
     @current_user = current_user
     @logged_user = logged_user
@@ -27,27 +16,27 @@ class EstablishmentsController
   def index
     @action_name = "index"
 
-    initialize_restme
+    restme_authorize!
 
     {
       body: pagination_response.as_json,
       status: restme_scope_status
     }
-  rescue AuthorizationError => e
-    authorization_erro(e)
+  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+    authorization_error(e)
   end
 
   def show
     @action_name = "show"
 
-    initialize_restme
+    restme_authorize!
 
     {
       body: model_scope_object.as_json,
       status: restme_scope_status
     }
-  rescue AuthorizationError => e
-    authorization_erro(e)
+  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+    authorization_error(e)
   end
 
   def render(json: {}, status: nil)
@@ -56,10 +45,10 @@ class EstablishmentsController
     raise AuthorizationError.new(json: json, status: status)
   end
 
-  def authorization_erro(error)
+  def authorization_error(error)
     {
-      body: error.json.as_json,
-      status: error.status
+      body: [{ body: {}, message: error.message }.as_json],
+      status: :forbidden
     }
   end
 end
