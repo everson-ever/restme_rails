@@ -85,6 +85,9 @@ module RestmeRails
             @scope_error_instance = scope_error_instance
             @filters_serialized = {}
 
+            # Pre insert id key when show action
+            insert_id_key_on_show_actions
+
             # Pre-serialize allowed filter fields
             serialized_allowed_fields
           end
@@ -106,8 +109,6 @@ module RestmeRails
           #
           # @return [Boolean, nil]
           def unallowed_filter_fields_errors
-            try_insert_id_equal
-
             return unless unserialized_allowed_fields_to_filter.present?
 
             scope_error_instance.add_error(
@@ -173,7 +174,7 @@ module RestmeRails
           end
 
           def add_serialized_field(filter_type, param_key, record_field)
-            param_value = context.query_params[param_key]
+            param_value = context.query_params[param_key] || context.params[record_field]
 
             filters_serialized[filter_type] ||= {}
             filters_serialized[filter_type][record_field] = param_value
@@ -204,23 +205,27 @@ module RestmeRails
           end
 
           # Automatically injects id_equal filter if :id param exists.
-          def try_insert_id_equal
-            return if context.params[:id].blank?
+          def insert_id_key_on_show_actions
+            return unless show_action?
 
             controller_params_filters_fields.push(:id_equal)
+          end
+
+          def show_action?
+            context.params[:id].present?
           end
 
           # Adds 404 error if id_equal filter returns no records.
           #
           # @return [Boolean, nil]
           def record_not_found_errors
-            return if context.query_params[:id_equal].blank?
+            return unless show_action?
             return if processed_scope.exists?
 
             scope_error_instance.add_error(
               {
                 message: "Record not found",
-                body: { id: context.query_params[:id_equal] }
+                body: { id: context.params[:id] }
               }
             )
 

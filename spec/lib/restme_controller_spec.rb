@@ -1820,7 +1820,7 @@ RSpec.describe "RestmeController", type: :controller do
       end
 
       context "when get product without any params" do
-        let(:query_parameters) do
+        let(:controller_params) do
           {
             id: product_a.id
           }
@@ -1851,7 +1851,7 @@ RSpec.describe "RestmeController", type: :controller do
       context "with field selections" do
         context "with fields_select" do
           context "when passed fields are allowed to select" do
-            let(:query_parameters) do
+            let(:controller_params) do
               {
                 id: product_a.id
               }
@@ -1880,7 +1880,7 @@ RSpec.describe "RestmeController", type: :controller do
           end
 
           context "when have fields not allowed to select" do
-            let(:query_parameters) do
+            let(:controller_params) do
               {
                 id: product_a.id
               }
@@ -1909,7 +1909,7 @@ RSpec.describe "RestmeController", type: :controller do
         context "with nested_fields_select" do
           context "when passed fields are allowed to select" do
             context "when nested_field have value associated" do
-              let(:query_parameters) do
+              let(:controller_params) do
                 {
                   id: product_a.id
                 }
@@ -1951,7 +1951,7 @@ RSpec.describe "RestmeController", type: :controller do
             end
 
             context "when nested_field does not have value associated" do
-              let(:query_parameters) do
+              let(:controller_params) do
                 {
                   id: establishment.id
                 }
@@ -1983,7 +1983,7 @@ RSpec.describe "RestmeController", type: :controller do
             end
 
             context "when select nested_field without select foreign key" do
-              let(:query_parameters) do
+              let(:controller_params) do
                 {
                   id: product_a.id
                 }
@@ -2011,7 +2011,7 @@ RSpec.describe "RestmeController", type: :controller do
           end
 
           context "when have nested_fields not allowed to select" do
-            let(:query_parameters) do
+            let(:controller_params) do
               {
                 id: product_a.id
               }
@@ -2039,9 +2039,9 @@ RSpec.describe "RestmeController", type: :controller do
       end
 
       context "when product id does not exists" do
-        let(:query_parameters) do
+        let(:controller_params) do
           {
-            id_equal: 10_000
+            id: 10_000
           }
         end
 
