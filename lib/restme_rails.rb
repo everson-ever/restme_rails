@@ -5,6 +5,7 @@ require_relative "restme_rails/configuration"
 require_relative "restme_rails/adapters/controller_adapter"
 require_relative "restme_rails/context"
 require_relative "restme_rails/runner"
+require_relative "restme_rails/error"
 
 # Main integration module for RestmeRails.
 #

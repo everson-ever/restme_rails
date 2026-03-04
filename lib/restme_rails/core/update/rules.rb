@@ -55,9 +55,9 @@ module RestmeRails
           @restme_update ||= begin
             @restme_update_custom_params = restme_update_custom_params
 
-            restme_update_set_current_user
+            restme_update_not_found_error!
 
-            restme_update_instance.assign_attributes(context.controller_params_serialized)
+            restme_update_set_current_user
 
             restme_update_errors.presence || restme_update_instance
           end
@@ -93,16 +93,17 @@ module RestmeRails
         # @return [ActiveRecord::Base, nil]
         def restme_update_instance
           @restme_update_instance ||= begin
-            record = context.model_class.find_by(id: context.params[:id])
+            params = context.controller_params_serialized
+            params = params.merge(@restme_update_custom_params) if @restme_update_custom_params.present?
 
-            if record
-              params = context.controller_params_serialized
-              params = params.merge(@restme_update_custom_params) if @restme_update_custom_params.present?
+            restme_record.assign_attributes(params)
 
-              record.assign_attributes(params)
-              record
-            end
+            restme_record
           end
+        end
+
+        def restme_record
+          @restme_record ||= context.model_class.find_by(id: context.params[:id])
         end
 
         # Resolves error output depending on:
@@ -114,7 +115,6 @@ module RestmeRails
         # @return [Hash, nil]
         def restme_update_errors
           return unless restme_update_current_action
-          return restme_update_not_found_error if restme_update_instance.blank?
           return restme_update_unscoped_errors unless restme_update_scope?
 
           restme_update_instance.save
@@ -124,13 +124,13 @@ module RestmeRails
           restme_update_active_record_errors
         end
 
-        # Error returned when record is not found.
+        # @raise [RecordNotFoundError] if record is not found
         #
-        # @return [Hash]
-        def restme_update_not_found_error
-          {
-            errors: "Not found object to id: #{context.params[:id]}"
-          }
+        # @return [void]
+        def restme_update_not_found_error!
+          return if restme_record.present?
+
+          raise RestmeRails::RecordNotFoundError, "Record not found: ID #{context.params[:id]}"
         end
 
         # Error returned when no scope rule allows the action.

@@ -40,9 +40,6 @@ module RestmeRails
       class Rules
         attr_reader :context
 
-        # Raised when the user is not authorized
-        class NotAuthorizedError < StandardError; end
-
         # @param context [RestmeRails::Context]
         def initialize(context:)
           @context = context
@@ -56,7 +53,7 @@ module RestmeRails
           return true if context.current_user.blank?
           return true if authorized?
 
-          raise NotAuthorizedError, "Action not allowed"
+          raise RestmeRails::NotAuthorizedError, "You are not allowed to access this resource"
         end
 
         private

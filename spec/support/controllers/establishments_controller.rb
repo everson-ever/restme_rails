@@ -22,7 +22,7 @@ class EstablishmentsController
       body: pagination_response.as_json,
       status: restme_scope_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 
@@ -35,7 +35,7 @@ class EstablishmentsController
       body: model_scope_object.as_json,
       status: restme_scope_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 

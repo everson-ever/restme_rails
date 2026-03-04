@@ -222,7 +222,7 @@ RSpec.describe "RestmeController", type: :controller do
             let(:user_role) { :other_role }
 
             let(:expected_result) do
-              [{ body: {}, message: "Action not allowed" }].as_json
+              [{ body: {}, message: "You are not allowed to access this resource" }].as_json
             end
 
             it "returns forbidden response" do
@@ -334,7 +334,7 @@ RSpec.describe "RestmeController", type: :controller do
             end
 
             let(:expected_result) do
-              [{ body: {}, message: "Action not allowed" }].as_json
+              [{ body: {}, message: "You are not allowed to access this resource" }].as_json
             end
 
             it "returns forbidden response" do
@@ -351,7 +351,7 @@ RSpec.describe "RestmeController", type: :controller do
       context "when authorize rules class does not exists" do
         context "when authorize rules does not exists" do
           let(:expected_result) do
-            [{ body: {}, message: "Action not allowed" }].as_json
+            [{ body: {}, message: "You are not allowed to access this resource" }].as_json
           end
 
           it "returns forbidden response" do
@@ -2045,21 +2045,10 @@ RSpec.describe "RestmeController", type: :controller do
           }
         end
 
-        let(:expected_result) do
-          [{
-            body: {
-              id: 10_000
-            },
-            message: "Record not found"
-          }].as_json
-        end
-
-        it "returns products" do
-          expect(products_controller.show[:body]).to eq(expected_result)
-        end
-
-        it "returns not_found status" do
-          expect(products_controller.show[:status]).to eq(:not_found)
+        it do
+          expect do
+            products_controller.show[:body]
+          end.to raise_error(RestmeRails::RecordNotFoundError, "Record not found: ID 10000")
         end
       end
     end
@@ -2456,6 +2445,23 @@ RSpec.describe "RestmeController", type: :controller do
 
           it do
             expect(products_controller.update[:status]).to eq(:unprocessable_content)
+          end
+        end
+
+        context "when record is not found" do
+          let(:controller_params) do
+            {
+              id: 10_000,
+              name: :foo,
+              code: :bar,
+              establishment_id: establishment.id
+            }
+          end
+
+          it do
+            expect do
+              products_controller.update[:body]
+            end.to raise_error(RestmeRails::RecordNotFoundError, "Record not found: ID 10000")
           end
         end
       end

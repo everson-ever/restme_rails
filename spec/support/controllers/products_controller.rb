@@ -22,7 +22,7 @@ class ProductsController
       body: pagination_response.as_json,
       status: restme_scope_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 
@@ -35,7 +35,7 @@ class ProductsController
       body: model_scope_object.as_json,
       status: restme_scope_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 
@@ -48,7 +48,7 @@ class ProductsController
       body: restme_create(restme_create_custom_params: restme_custom_params),
       status: restme_create_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 
@@ -61,7 +61,7 @@ class ProductsController
       body: restme_update(restme_update_custom_params: restme_custom_params),
       status: restme_update_status
     }
-  rescue RestmeRails::Core::Authorize::Rules::NotAuthorizedError => e
+  rescue RestmeRails::NotAuthorizedError => e
     authorization_error(e)
   end
 

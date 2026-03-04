@@ -100,7 +100,8 @@ module RestmeRails
             @user_scope = user_scope
 
             return user_scope unless filterable_scope?
-            return context.model_class.none if record_not_found_errors
+
+            record_not_found_error! unless processed_scope.exists?
 
             processed_scope
           end
@@ -215,23 +216,13 @@ module RestmeRails
             context.params[:id].present?
           end
 
-          # Adds 404 error if id_equal filter returns no records.
+          # @raise [RecordNotFoundError] if record is not found
           #
-          # @return [Boolean, nil]
-          def record_not_found_errors
+          # @return [void]
+          def record_not_found_error!
             return unless show_action?
-            return if processed_scope.exists?
 
-            scope_error_instance.add_error(
-              {
-                message: "Record not found",
-                body: { id: context.params[:id] }
-              }
-            )
-
-            scope_error_instance.add_status(:not_found)
-
-            true
+            raise RestmeRails::RecordNotFoundError, "Record not found: ID #{context.params[:id]}"
           end
 
           # Returns filter fields that were provided but not allowed.
