@@ -48,31 +48,15 @@ module RestmeRails
           #
           # Follows the Filter::Types convention:
           #
-          #   - Defines FIELD_SUFFIX
           #   - Reads serialized filters
           #   - Applies condition to scope
           #
           class InFilterable
-            # Query param suffix used to identify this filter type.
-            #
-            # Example:
-            #   status_in
-            #
-            # @return [Symbol]
-            FIELD_SUFFIX = :in
-
-            attr_reader :context, :filters_serialized
+            attr_reader :context
 
             # @param context [RestmeRails::Context]
-            # @param filters_serialized [Hash]
-            #
-            # Example input:
-            #   {
-            #     in: { status: "active,pending" }
-            #   }
-            def initialize(context:, filters_serialized:)
+            def initialize(context:)
               @context = context
-              @filters_serialized = normalize_filters(filters_serialized[FIELD_SUFFIX])
             end
 
             # Applies the "IN" condition to the given scope.
@@ -80,11 +64,17 @@ module RestmeRails
             # Returns original scope if no filters were provided.
             #
             # @param scope [ActiveRecord::Relation]
+            # @param filter_serialized [Hash]
+            #
+            # filter_serialized example:
+            #
+            #   { establishment_id: 100 }
+            #
             # @return [ActiveRecord::Relation]
-            def filter(scope)
-              return scope if filters_serialized.blank?
+            def filter(scope, filter_serialized)
+              filter_serialized = normalize_filters(filter_serialized)
 
-              scope.where(in_sql, filters_serialized)
+              scope.where(sql(filter_serialized), filter_serialized)
             end
 
             private
@@ -113,8 +103,8 @@ module RestmeRails
             #   "users.status IN (:status) AND users.role IN (:role)"
             #
             # @return [String]
-            def in_sql
-              filters_serialized.keys.map do |param|
+            def sql(filter_serialized)
+              filter_serialized.keys.map do |param|
                 "#{qualified_column(param)} IN (:#{param})"
               end.join(" AND ")
             end

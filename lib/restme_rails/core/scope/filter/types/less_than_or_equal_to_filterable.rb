@@ -46,31 +46,21 @@ module RestmeRails
           #
           # Follows the Filter::Types convention:
           #
-          #   - Defines FIELD_SUFFIX
           #   - Reads serialized filters
           #   - Applies condition to scope
           #
           class LessThanOrEqualToFilterable
-            # Query param suffix used to identify this filter.
-            #
-            # Example:
-            #   price_less_than_or_equal_to
-            #
-            # @return [Symbol]
-            FIELD_SUFFIX = :less_than_or_equal_to
-
-            attr_reader :context, :filters_serialized
+            attr_reader :context
 
             # @param context [RestmeRails::Context]
-            # @param filters_serialized [Hash]
+            # @param filter_serialized [Hash]
             #
             # Example input:
             #   {
             #     less_than_or_equal_to: { price: 100 }
             #   }
-            def initialize(context:, filters_serialized:)
+            def initialize(context:)
               @context = context
-              @filters_serialized = filters_serialized[FIELD_SUFFIX]
             end
 
             # Applies the "<=" condition to the given scope.
@@ -78,11 +68,15 @@ module RestmeRails
             # Returns original scope if no filters were provided.
             #
             # @param scope [ActiveRecord::Relation]
+            # @param filter_serialized [Hash]
+            #
+            # filter_serialized example:
+            #
+            #   { price: 10 }
+            #
             # @return [ActiveRecord::Relation]
-            def filter(scope)
-              return scope if filters_serialized.blank?
-
-              scope.where(less_than_or_equal_to_sql, filters_serialized)
+            def filter(scope, filter_serialized)
+              scope.where(sql(filter_serialized), filter_serialized)
             end
 
             private
@@ -93,8 +87,8 @@ module RestmeRails
             #   "products.price <= :price AND products.quantity <= :quantity"
             #
             # @return [String]
-            def less_than_or_equal_to_sql
-              filters_serialized.keys.map do |param|
+            def sql(filter_serialized)
+              filter_serialized.keys.map do |param|
                 "#{qualified_column(param)} <= :#{param}"
               end.join(" AND ")
             end

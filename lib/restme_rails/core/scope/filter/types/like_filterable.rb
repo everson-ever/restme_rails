@@ -42,21 +42,11 @@ module RestmeRails
           # - Uses named parameters to prevent SQL injection.
           #
           class LikeFilterable
-            # Query param suffix used to identify this filter.
-            #
-            # Example:
-            #   name_like
-            #
-            # @return [Symbol]
-            FIELD_SUFFIX = :like
-
-            attr_reader :context, :filters_serialized
+            attr_reader :context
 
             # @param context [RestmeRails::Context]
-            # @param filters_serialized [Hash]
-            def initialize(context:, filters_serialized:)
+            def initialize(context:)
               @context = context
-              @filters_serialized = filters_serialized[FIELD_SUFFIX]
             end
 
             # Applies the ILIKE condition to the given scope.
@@ -64,11 +54,15 @@ module RestmeRails
             # Returns original scope if no filters were provided.
             #
             # @param scope [ActiveRecord::Relation]
+            # @param filter_serialized [Hash]
+            #
+            # filter_serialized example:
+            #
+            #   { name: "foo" }
+            #
             # @return [ActiveRecord::Relation]
-            def filter(scope)
-              return scope if filters_serialized.blank?
-
-              scope.where(like_sql, wildcarded_filters)
+            def filter(scope, filter_serialized)
+              scope.where(sql(filter_serialized), wildcarded_filters(filter_serialized))
             end
 
             private
@@ -79,8 +73,8 @@ module RestmeRails
             #   "CAST(users.name AS TEXT) ILIKE :name"
             #
             # @return [String]
-            def like_sql
-              filters_serialized.keys.map do |param|
+            def sql(filter_serialized)
+              filter_serialized.keys.map do |param|
                 "CAST(#{qualified_column(param)} AS TEXT) ILIKE :#{param}"
               end.join(" AND ")
             end
@@ -89,8 +83,8 @@ module RestmeRails
             # without mutating the original hash.
             #
             # @return [Hash]
-            def wildcarded_filters
-              filters_serialized.transform_values do |value|
+            def wildcarded_filters(filter_serialized)
+              filter_serialized.transform_values do |value|
                 "%#{value}%"
               end
             end

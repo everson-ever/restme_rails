@@ -141,7 +141,8 @@ module RestmeRails
                 next unless @filters_serialized[filter_type]
 
                 filter_instance = send("#{filter_type}_instance")
-                @user_scope = filter_instance.filter(@user_scope)
+
+                @user_scope = filter_instance.filter(@user_scope, @filters_serialized[filter_type])
               end
 
               @user_scope
@@ -248,38 +249,31 @@ module RestmeRails
           # ------------------------------------------------------------
 
           def in_instance
-            @in_instance ||= Types::InFilterable
-                             .new(context: context, filters_serialized: @filters_serialized)
+            @in_instance ||= Types::InFilterable.new(context: context)
           end
 
           def less_than_or_equal_to_instance
-            @less_than_or_equal_to_instance ||= Types::LessThanOrEqualToFilterable
-                                                .new(context: context, filters_serialized: @filters_serialized)
+            @less_than_or_equal_to_instance ||= Types::LessThanOrEqualToFilterable.new(context: context)
           end
 
           def bigger_than_or_equal_to_instance
-            @bigger_than_or_equal_to_instance ||= Types::BiggerThanOrEqualToFilterable
-                                                  .new(context: context, filters_serialized: @filters_serialized)
+            @bigger_than_or_equal_to_instance ||= Types::BiggerThanOrEqualToFilterable.new(context: context)
           end
 
           def less_than_instance
-            @less_than_instance ||= Types::LessThanFilterable
-                                    .new(context: context, filters_serialized: @filters_serialized)
+            @less_than_instance ||= Types::LessThanFilterable.new(context: context)
           end
 
           def bigger_than_instance
-            @bigger_than_instance ||= Types::BiggerThanFilterable
-                                      .new(context: context, filters_serialized: @filters_serialized)
+            @bigger_than_instance ||= Types::BiggerThanFilterable.new(context: context)
           end
 
           def like_instance
-            @like_instance ||= Types::LikeFilterable
-                               .new(context: context, filters_serialized: @filters_serialized)
+            @like_instance ||= Types::LikeFilterable.new(context: context)
           end
 
           def equal_instance
-            @equal_instance ||= Types::EqualFilterable
-                                .new(context: context, filters_serialized: @filters_serialized)
+            @equal_instance ||= Types::EqualFilterable.new(context: context)
           end
         end
       end
