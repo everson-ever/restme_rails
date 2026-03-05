@@ -79,7 +79,7 @@ module RestmeRails
             #
             # @param scope [ActiveRecord::Relation]
             # @return [ActiveRecord::Relation]
-            def where_less_than(scope)
+            def filter(scope)
               return scope if filters_serialized.blank?
 
               scope.where(less_than_sql, filters_serialized)

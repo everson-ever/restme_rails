@@ -83,7 +83,7 @@ module RestmeRails
             #
             # @param scope [ActiveRecord::Relation]
             # @return [ActiveRecord::Relation]
-            def where_equal(scope)
+            def filter(scope)
               return scope if filters_serialized.blank?
 
               scope.where(equal_sql, filters_serialized)

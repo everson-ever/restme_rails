@@ -81,7 +81,7 @@ module RestmeRails
             #
             # @param scope [ActiveRecord::Relation]
             # @return [ActiveRecord::Relation]
-            def where_bigger_than(scope)
+            def filter(scope)
               return scope if filters_serialized.blank?
 
               scope.where(bigger_than_sql, filters_serialized)

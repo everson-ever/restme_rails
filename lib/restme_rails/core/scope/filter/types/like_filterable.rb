@@ -65,7 +65,7 @@ module RestmeRails
             #
             # @param scope [ActiveRecord::Relation]
             # @return [ActiveRecord::Relation]
-            def where_like(scope)
+            def filter(scope)
               return scope if filters_serialized.blank?
 
               scope.where(like_sql, wildcarded_filters)

@@ -130,20 +130,21 @@ module RestmeRails
           # Filter Pipeline
           # ------------------------------------------------------------
 
-          # Applies all filter types sequentially.
+          # Applies the filter types needed.
           #
           # Order matters.
           #
           # @return [ActiveRecord::Relation]
           def processed_scope
             @processed_scope ||= begin
-              next_scope = equal_instance.where_equal(@user_scope)
-              next_scope = like_instance.where_like(next_scope)
-              next_scope = bigger_than_instance.where_bigger_than(next_scope)
-              next_scope = less_than_instance.where_less_than(next_scope)
-              next_scope = bigger_than_or_equal_to_instance.where_bigger_than_or_equal_to(next_scope)
-              next_scope = less_than_or_equal_to_instance.where_less_than_or_equal_to(next_scope)
-              in_filter_instance.where_in(next_scope)
+              FILTERS_TYPES.each do |filter_type|
+                next unless @filters_serialized[filter_type]
+
+                filter_instance = send("#{filter_type}_instance")
+                @user_scope = filter_instance.filter(@user_scope)
+              end
+
+              @user_scope
             end
           end
 
@@ -246,9 +247,9 @@ module RestmeRails
           # Filter Type Instances (Lazy)
           # ------------------------------------------------------------
 
-          def in_filter_instance
-            @in_filter_instance ||= Types::InFilterable
-                                    .new(context: context, filters_serialized: @filters_serialized)
+          def in_instance
+            @in_instance ||= Types::InFilterable
+                             .new(context: context, filters_serialized: @filters_serialized)
           end
 
           def less_than_or_equal_to_instance
