@@ -873,12 +873,11 @@ RSpec.describe "RestmeController", type: :controller do
               [{ body: ["id"], message: "missing attribute 'establishment_id' for Product" }]
             end
 
-            it "returns products" do
-              expect(products_controller.index[:body]).to eq(expected_result.as_json)
-            end
-
-            it "returns ok status" do
-              expect(products_controller.index[:status]).to eq(:bad_request)
+            it do
+              expect do
+                products_controller.index[:index]
+              end.to raise_error(RestmeRails::MissingAttributeError,
+                                 "missing attribute 'establishment_id' for Product")
             end
           end
         end
@@ -1996,16 +1995,11 @@ RSpec.describe "RestmeController", type: :controller do
                 }
               end
 
-              let(:expected_result) do
-                [{ body: ["id"], message: "missing attribute 'establishment_id' for Product" }]
-              end
-
-              it "returns products" do
-                expect(products_controller.show[:body]).to eq(expected_result.as_json)
-              end
-
-              it "returns ok status" do
-                expect(products_controller.show[:status]).to eq(:bad_request)
+              it do
+                expect do
+                  products_controller.show[:body]
+                end.to raise_error(RestmeRails::MissingAttributeError,
+                                   "missing attribute 'establishment_id' for Product")
               end
             end
           end

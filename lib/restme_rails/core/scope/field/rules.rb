@@ -75,7 +75,7 @@ module RestmeRails
 
             attachable_instance.insert_attachments(scoped)
           rescue ActiveModel::MissingAttributeError => e
-            add_scope_error(e)
+            raise RestmeRails::MissingAttributeError, e.message
           end
 
           # Registers error if client selects invalid fields.

@@ -43,4 +43,21 @@ module RestmeRails
   #   HTTP 404 (Not Found)
   #
   class RecordNotFoundError < Error; end
+
+  # Raised when a required attribute is missing during execution.
+  #
+  # Typically used when mandatory parameters or model attributes
+  # are not provided, preventing the operation from proceeding.
+  #
+  # Example:
+  #
+  #   raise RestmeRails::MissingAttributeError, "name is required"
+  #
+  # This error can be rescued at the controller layer and mapped to:
+  #
+  #   HTTP 422 (Unprocessable Entity)
+  #   or
+  #   HTTP 400 (Bad Request)
+  #
+  class MissingAttributeError < Error; end
 end
