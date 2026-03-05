@@ -1784,12 +1784,12 @@ RSpec.describe "RestmeController", type: :controller do
             let(:expected_result) do
               [
                 {
-                  body: ["updated_at"],
-                  message: "Unknown Sort"
-                },
-                {
                   body: ["code_equal"],
                   message: "Unknown Filter Fields"
+                },
+                {
+                  body: ["updated_at"],
+                  message: "Unknown Sort"
                 }
               ].as_json
             end

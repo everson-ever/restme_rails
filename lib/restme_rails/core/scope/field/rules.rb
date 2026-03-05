@@ -65,7 +65,7 @@ module RestmeRails
           #
           # @param user_scope [ActiveRecord::Relation]
           # @return [ActiveRecord::Relation, Array<Hash>]
-          def fieldable_scope(user_scope)
+          def process(user_scope)
             return user_scope unless select_any_field?
 
             scoped = user_scope
@@ -77,6 +77,16 @@ module RestmeRails
           rescue ActiveModel::MissingAttributeError => e
             raise RestmeRails::MissingAttributeError, e.message
           end
+
+          # Registers errors from field and field attachment
+          #
+          # @return [Boolean, nil]
+          def errors
+            unallowed_select_fields_errors
+            unallowed_attachment_fields_errors
+          end
+
+          private
 
           # Registers error if client selects invalid fields.
           #
@@ -100,8 +110,6 @@ module RestmeRails
           def unallowed_attachment_fields_errors
             attachable_instance.unallowed_attachment_fields_errors
           end
-
-          private
 
           # Registers ActiveModel::MissingAttributeError
           #

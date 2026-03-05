@@ -36,7 +36,7 @@ module RestmeRails
           #
           # @param user_scope [ActiveRecord::Relation]
           # @return [ActiveRecord::Relation]
-          def sortable_scope(user_scope)
+          def process(user_scope)
             return user_scope unless sortable_scope?
 
             user_scope.order(serialize_sort_params)
@@ -49,7 +49,7 @@ module RestmeRails
           # - HTTP status :bad_request
           #
           # @return [Boolean, nil]
-          def unknown_sortable_fields_errors
+          def errors
             return unless unknown_sortable_fields.present?
 
             scope_error_instance.add_error(

@@ -36,13 +36,35 @@ module RestmeRails
       # Each method must return an ActiveRecord::Relation.
       #
       class Rules
-        attr_reader :context, :scope_error_instance, :filterable_scope_response
+        attr_reader :context, :scope_error_instance
+
+        # Ordered list of rule processors used to build the final scope pipeline.
+        #
+        # The order of these processors is critical because each step
+        # receives the result of the previous one.
+        #
+        # Pipeline order:
+        #
+        # 1. Filter
+        # 2. Sort
+        # 3. Paginate
+        # 4. Field selection
+        #
+        # Changing this order may break expected query behavior.
+        #
+        # @return [Array<Symbol>]
+        CLASS_INSTANCE_REGISTRY = %i[
+          filter_rules_instance
+          sort_rules_instance
+          paginate_rules_instance
+          field_rules_instance
+        ].freeze
 
         def initialize(context:)
           @context = context
           @scope_error_instance = RestmeRails::ScopeError.new
 
-          any_scope_errors
+          check_scope_errors
         end
 
         # Returns paginated response structure.
@@ -57,11 +79,7 @@ module RestmeRails
         #
         # @return [Hash]
         def pagination_response
-          @pagination_response ||= begin
-            prepare_model_scope
-
-            pagination_response_object
-          end
+          @pagination_response ||= (pagination_response_object if scope_errors.blank?)
         end
 
         # Returns a single scoped object (first record).
@@ -72,17 +90,33 @@ module RestmeRails
         #
         # @return [ActiveRecord::Base, Hash, nil]
         def model_scope_object
-          @model_scope_object ||= begin
-            prepare_model_scope
-
-            model_scope&.first
-          end
+          @model_scope_object ||= (model_scope&.first if scope_errors.blank?)
         end
 
+        # Returns the HTTP-like status derived from scope errors.
+        #
+        # Delegates to ScopeError instance.
+        #
+        # Example:
+        #   200 -> success
+        #   400 -> invalid query parameters
+        #   403 -> forbidden access
+        #
+        # @return [Integer]
         def scope_status
           scope_error_instance.scope_status
         end
 
+        # Returns the aggregated scope errors collected during rule execution.
+        #
+        # Errors may originate from:
+        #
+        # - filtering
+        # - sorting
+        # - pagination
+        # - field selection
+        #
+        # @return [Array<Hash>]
         def scope_errors
           scope_error_instance.scope_errors
         end
@@ -97,33 +131,18 @@ module RestmeRails
           }
         end
 
-        # Prepares model scope only if no errors are detected.
-        def prepare_model_scope
-          model_scope if any_scope_errors.blank?
-        end
-
         # Executes all error-checking methods and aggregates errors.
         #
         # @return [Array, nil]
-        def any_scope_errors
-          @any_scope_errors ||= begin
-            [
-              paginate_rules.per_page_errors,
-              sort_rules.unknown_sortable_fields_errors,
-              filter_rules.unallowed_filter_fields_errors,
-              field_rules.unallowed_select_fields_errors,
-              field_rules.unallowed_attachment_fields_errors
-            ].freeze
-
-            scope_error_instance.scope_errors
-          end
+        def check_scope_errors
+          @check_scope_errors ||= CLASS_INSTANCE_REGISTRY.each { |klass| send(klass).errors }
         end
 
         # Final composed ActiveRecord::Relation.
         #
         # @return [ActiveRecord::Relation]
         def model_scope
-          @model_scope ||= custom_scope
+          @model_scope ||= final_scope
         end
 
         # Pagination metadata.
@@ -131,9 +150,9 @@ module RestmeRails
         # @return [Hash]
         def pagination
           {
-            page: paginate_rules.page_no,
-            pages: paginate_rules.pages(filterable_scope_response),
-            total_items: paginate_rules.total_items(filterable_scope_response)
+            page: paginate_rules_instance.page_no,
+            pages: paginate_rules_instance.pages(filter_rules_instance.scope),
+            total_items: paginate_rules_instance.total_items(filter_rules_instance.scope)
           }
         end
 
@@ -146,11 +165,10 @@ module RestmeRails
         # 5. Apply field selection
         #
         # @return [ActiveRecord::Relation]
-        def custom_scope
-          @filterable_scope_response = filter_rules.filterable_scope(user_scope)
-          scope = sort_rules.sortable_scope(filterable_scope_response)
-          scope = paginate_rules.paginable_scope(scope)
-          field_rules.fieldable_scope(scope)
+        def final_scope
+          @final_scope ||= CLASS_INSTANCE_REGISTRY.reduce(user_scope) do |value, klass|
+            send(klass).process(value)
+          end
         end
 
         # Resolves base scope based on user roles.
@@ -219,9 +237,26 @@ module RestmeRails
           end
         end
 
+        # Lazily instantiates the dynamic Scope Rules class.
+        #
+        # The class is resolved using the Restme convention system
+        # and initialized with:
+        #
+        #   (model_class, current_user, params)
+        #
+        # This class is responsible for defining role-based scopes,
+        # such as:
+        #
+        #   admin_scope
+        #   manager_scope
+        #
+        # @return [Object, nil]
         def scope_rules_class_instance
-          @scope_rules_class_instance ||= scope_rules_class&.new(context.model_class, context.current_user,
-                                                                 context.params)
+          @scope_rules_class_instance ||= scope_rules_class&.new(
+            context.model_class,
+            context.current_user,
+            context.params
+          )
         end
 
         # Instantiates the Scope Rules class dynamically.
@@ -234,28 +269,61 @@ module RestmeRails
         #
         # @return [Object]
         def scope_rules_class
-          @scope_rules_class ||= RestmeRails::RulesFind.new(klass: context.model_class,
-                                                            rule_context: "Scope").rule_class
+          @scope_rules_class ||=
+            RestmeRails::RulesFind.new(klass: context.model_class, rule_context: "Scope").rule_class
         end
 
-        def field_rules
-          @field_rules ||= ::RestmeRails::Core::Scope::Field::Rules
-                           .new(context: context, scope_error_instance: scope_error_instance)
+        # Returns the Field Rules processor instance.
+        #
+        # Responsible for limiting the fields returned
+        # in the final query result.
+        #
+        # @return [RestmeRails::Core::Scope::Field::Rules]
+        def field_rules_instance
+          @field_rules_instance ||=
+            ::RestmeRails::Core::Scope::Field::Rules.new(
+              context: context,
+              scope_error_instance: scope_error_instance
+            )
         end
 
-        def paginate_rules
-          @paginate_rules ||= ::RestmeRails::Core::Scope::Paginate::Rules
-                              .new(context: context, scope_error_instance: scope_error_instance)
+        # Returns the Pagination Rules processor instance.
+        #
+        # Responsible for applying pagination to the query
+        # and providing pagination metadata.
+        #
+        # @return [RestmeRails::Core::Scope::Paginate::Rules]
+        def paginate_rules_instance
+          @paginate_rules_instance ||= ::RestmeRails::Core::Scope::Paginate::Rules.new(
+            context: context,
+            scope_error_instance: scope_error_instance
+          )
         end
 
-        def sort_rules
-          @sort_rules ||= ::RestmeRails::Core::Scope::Sort::Rules
-                          .new(context: context, scope_error_instance: scope_error_instance)
+        # Returns the Sort Rules processor instance.
+        #
+        # Responsible for applying ordering to the query
+        # based on request parameters.
+        #
+        # @return [RestmeRails::Core::Scope::Sort::Rules]
+        def sort_rules_instance
+          @sort_rules_instance ||= ::RestmeRails::Core::Scope::Sort::Rules.new(
+            context: context,
+            scope_error_instance: scope_error_instance
+          )
         end
 
-        def filter_rules
-          @filter_rules ||= ::RestmeRails::Core::Scope::Filter::Rules
-                            .new(context: context, scope_error_instance: scope_error_instance)
+        # Returns the Filter Rules processor instance.
+        #
+        # Responsible for applying filtering conditions
+        # to the query based on request parameters.
+        #
+        # @return [RestmeRails::Core::Scope::Filter::Rules]
+        def filter_rules_instance
+          @filter_rules_instance ||= ::RestmeRails::Core::Scope::Filter::Rules.new(
+            context: context,
+            scope_error_instance: scope_error_instance
+          )
         end
       end
     end

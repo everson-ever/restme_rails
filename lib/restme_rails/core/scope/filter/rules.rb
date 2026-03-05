@@ -76,7 +76,7 @@ module RestmeRails
             in
           ].freeze
 
-          attr_reader :context, :scope_error_instance, :filters_serialized
+          attr_reader :context, :scope_error_instance, :filters_serialized, :scope
 
           # @param context [RestmeRails::Context]
           # @param scope_error_instance [ScopeErrorHandler]
@@ -96,20 +96,22 @@ module RestmeRails
           #
           # @param user_scope [ActiveRecord::Relation]
           # @return [ActiveRecord::Relation]
-          def filterable_scope(user_scope)
-            @user_scope = user_scope
+          def process(user_scope)
+            @scope = user_scope
 
-            return user_scope unless filterable_scope?
+            return @scope unless filterable_scope?
+
+            @scope = processed_scope
 
             record_not_found_error! unless processed_scope.exists?
 
-            processed_scope
+            @scope
           end
 
           # Registers error for unknown filter fields.
           #
           # @return [Boolean, nil]
-          def unallowed_filter_fields_errors
+          def errors
             return unless unserialized_allowed_fields_to_filter.present?
 
             scope_error_instance.add_error(
@@ -142,10 +144,10 @@ module RestmeRails
 
                 filter_instance = send("#{filter_type}_instance")
 
-                @user_scope = filter_instance.filter(@user_scope, @filters_serialized[filter_type])
+                @scope = filter_instance.filter(@scope, @filters_serialized[filter_type])
               end
 
-              @user_scope
+              @scope
             end
           end
 

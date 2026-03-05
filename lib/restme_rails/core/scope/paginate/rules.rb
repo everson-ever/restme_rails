@@ -33,7 +33,7 @@ module RestmeRails
           #
           # @param user_scope [ActiveRecord::Relation]
           # @return [ActiveRecord::Relation]
-          def paginable_scope(user_scope)
+          def process(user_scope)
             user_scope.limit(per_page).offset(paginate_offset)
           end
 
@@ -74,7 +74,7 @@ module RestmeRails
           # - HTTP status :bad_request
           #
           # @return [Boolean, nil]
-          def per_page_errors
+          def errors
             return if per_page <= ::RestmeRails::Configuration.pagination_max_per_page
 
             add_per_page_errors
