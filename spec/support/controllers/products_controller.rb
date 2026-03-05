@@ -45,7 +45,7 @@ class ProductsController
     restme_authorize!
 
     {
-      body: restme_create(restme_create_custom_params: restme_custom_params),
+      body: restme_create(custom_params: restme_custom_params),
       status: restme_create_status
     }
   rescue RestmeRails::NotAuthorizedError => e
@@ -58,7 +58,7 @@ class ProductsController
     restme_authorize!
 
     {
-      body: restme_update(restme_update_custom_params: restme_custom_params),
+      body: restme_update(custom_params: restme_custom_params),
       status: restme_update_status
     }
   rescue RestmeRails::NotAuthorizedError => e

@@ -65,13 +65,13 @@ module RestmeRails
 
     # Executes create rules and persists a new record.
     #
-    # @param restme_create_custom_params [Hash]
+    # @param custom_params [Hash]
     #   Additional attributes to merge into creation params.
     #
     # @return [Object] The created record (or rule response object)
-    def restme_create(restme_create_custom_params: {})
-      create_rules_instance.restme_create(
-        restme_create_custom_params: restme_create_custom_params
+    def restme_create(custom_params: {})
+      create_rules_instance.create(
+        custom_params: custom_params
       )
     end
 
@@ -79,7 +79,7 @@ module RestmeRails
     #
     # @return [Symbol, Integer]
     def restme_create_status
-      create_rules_instance.restme_create_status
+      create_rules_instance.create_status
     end
 
     # ----------------------------------------
@@ -88,13 +88,13 @@ module RestmeRails
 
     # Executes update rules for the current record.
     #
-    # @param restme_update_custom_params [Hash]
+    # @param custom_params [Hash]
     #   Additional attributes to merge into update params.
     #
     # @return [Object] The updated record (or rule response object)
-    def restme_update(restme_update_custom_params: {})
-      update_rules_instance.restme_update(
-        restme_update_custom_params: restme_update_custom_params
+    def restme_update(custom_params: {})
+      update_rules_instance.update(
+        custom_params: custom_params
       )
     end
 
@@ -102,7 +102,7 @@ module RestmeRails
     #
     # @return [Symbol, Integer]
     def restme_update_status
-      update_rules_instance.restme_update_status
+      update_rules_instance.update_status
     end
 
     # ----------------------------------------
@@ -113,7 +113,7 @@ module RestmeRails
     #
     # @return [Hash]
     def pagination_response
-      scope_rules_instance.pagination_response
+      scope_rules_instance.scope_errors.presence || scope_rules_instance.pagination_response
     end
 
     # Returns the scoped ActiveRecord::Relation
@@ -121,14 +121,14 @@ module RestmeRails
     #
     # @return [ActiveRecord::Relation]
     def model_scope_object
-      scope_rules_instance.model_scope_object
+      scope_rules_instance.scope_errors.presence || scope_rules_instance.model_scope_object
     end
 
     # Returns HTTP status related to scope execution.
     #
     # @return [Symbol, Integer]
-    def restme_scope_status
-      scope_rules_instance.restme_scope_status
+    def scope_status
+      scope_rules_instance.scope_status
     end
 
     private

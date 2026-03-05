@@ -47,19 +47,19 @@ module RestmeRails
         #    - The updated instance
         #    - A normalized error hash
         #
-        # @param restme_update_custom_params [Hash]
+        # @param custom_params [Hash]
         #   Additional params merged into controller_params
         #
         # @return [ActiveRecord::Base, Hash]
-        def restme_update(restme_update_custom_params: {})
-          @restme_update ||= begin
-            @restme_update_custom_params = restme_update_custom_params
+        def update(custom_params: {})
+          @update ||= begin
+            @custom_params = custom_params
 
-            restme_update_not_found_error!
+            update_not_found_error!
 
-            restme_update_set_current_user
+            update_set_current_user
 
-            restme_update_errors.presence || restme_update_instance
+            update_errors.presence || update_instance
           end
         end
 
@@ -67,19 +67,19 @@ module RestmeRails
         # based on whether errors exist.
         #
         # @return [Symbol]
-        def restme_update_status
-          restme_update_errors ? :unprocessable_content : :ok
+        def update_status
+          update_errors ? :unprocessable_content : :ok
         end
 
         private
 
         # Assigns current_user to the model instance
         # if the model defines `current_user=`.
-        def restme_update_set_current_user
+        def update_set_current_user
           return unless context.current_user
-          return unless restme_update_instance.respond_to?(:current_user)
+          return unless update_instance.respond_to?(:current_user)
 
-          restme_update_instance.current_user = context.current_user
+          update_instance.current_user = context.current_user
         end
 
         # Finds the record and prepares it for update.
@@ -91,19 +91,19 @@ module RestmeRails
         # Memoized.
         #
         # @return [ActiveRecord::Base, nil]
-        def restme_update_instance
-          @restme_update_instance ||= begin
+        def update_instance
+          @update_instance ||= begin
             params = context.controller_params_serialized
-            params = params.merge(@restme_update_custom_params) if @restme_update_custom_params.present?
+            params = params.merge(@custom_params) if @custom_params.present?
 
-            restme_record.assign_attributes(params)
+            record.assign_attributes(params)
 
-            restme_record
+            record
           end
         end
 
-        def restme_record
-          @restme_record ||= context.model_class.find_by(id: context.params[:id])
+        def record
+          @record ||= context.model_class.find_by(id: context.params[:id])
         end
 
         # Resolves error output depending on:
@@ -113,22 +113,22 @@ module RestmeRails
         # - ActiveRecord validation errors
         #
         # @return [Hash, nil]
-        def restme_update_errors
-          return unless restme_update_current_action
-          return restme_update_unscoped_errors unless restme_update_scope?
+        def update_errors
+          return unless update_current_action
+          return update_unscoped_errors unless update_scope?
 
-          restme_update_instance.save
+          update_instance.save
 
-          return if restme_update_instance.errors.blank?
+          return if update_instance.errors.blank?
 
-          restme_update_active_record_errors
+          update_active_record_errors
         end
 
         # @raise [RecordNotFoundError] if record is not found
         #
         # @return [void]
-        def restme_update_not_found_error!
-          return if restme_record.present?
+        def update_not_found_error!
+          return if record.present?
 
           raise RestmeRails::RecordNotFoundError, "Record not found: ID #{context.params[:id]}"
         end
@@ -136,7 +136,7 @@ module RestmeRails
         # Error returned when no scope rule allows the action.
         #
         # @return [Hash]
-        def restme_update_unscoped_errors
+        def update_unscoped_errors
           { errors: ["Unscoped"] }
         end
 
@@ -148,12 +148,12 @@ module RestmeRails
         #   "#{action}_#{role}_scope?"
         #
         # @return [Boolean]
-        def restme_update_scope?
+        def update_scope?
           return true unless context.current_user
 
-          restme_update_methods_scopes.any? do |method_scope|
-            restme_update_rules_class_instance.respond_to?(method_scope) &&
-              restme_update_rules_class_instance.public_send(method_scope)
+          update_methods_scopes.any? do |method_scope|
+            update_rules_class_instance.respond_to?(method_scope) &&
+              update_rules_class_instance.public_send(method_scope)
           end
         end
 
@@ -165,9 +165,9 @@ module RestmeRails
         #   update_user_scope?
         #
         # @return [Array<String>]
-        def restme_update_methods_scopes
-          @restme_update_methods_scopes ||= context.current_user_roles.map do |restme_role|
-            "#{restme_update_current_action}_#{restme_role}_scope?"
+        def update_methods_scopes
+          @update_methods_scopes ||= context.current_user_roles.map do |role|
+            "#{update_current_action}_#{role}_scope?"
           end
         end
 
@@ -175,20 +175,20 @@ module RestmeRails
         # inside RESTME_UPDATE_ACTIONS_RULES.
         #
         # @return [Symbol, nil]
-        def restme_update_current_action
-          return unless restme_update_rules_class&.const_defined?(:RESTME_UPDATE_ACTIONS_RULES)
+        def update_current_action
+          return unless update_rules_class&.const_defined?(:RESTME_UPDATE_ACTIONS_RULES)
 
           context.action_name.presence_in(
-            restme_update_rules_class::RESTME_UPDATE_ACTIONS_RULES
+            update_rules_class::RESTME_UPDATE_ACTIONS_RULES
           )
         end
 
         # Returns validation errors in normalized format.
         #
         # @return [Hash]
-        def restme_update_active_record_errors
+        def update_active_record_errors
           {
-            errors: restme_update_instance.errors.messages
+            errors: update_instance.errors.messages
           }
         end
 
@@ -198,10 +198,10 @@ module RestmeRails
         #   (instance, current_user, controller_params)
         #
         # @return [Object, nil]
-        def restme_update_rules_class_instance
-          @restme_update_rules_class_instance ||=
-            restme_update_rules_class&.new(
-              restme_update_instance,
+        def update_rules_class_instance
+          @update_rules_class_instance ||=
+            update_rules_class&.new(
+              update_instance,
               context.current_user,
               context.controller_params_serialized
             )
@@ -215,9 +215,9 @@ module RestmeRails
         # Uses safe_constantize to avoid raising errors.
         #
         # @return [Class, nil]
-        def restme_update_rules_class
-          @restme_update_rules_class ||= RestmeRails::RulesFind.new(klass: context.model_class,
-                                                                    rule_context: "Update").rule_class
+        def update_rules_class
+          @update_rules_class ||= RestmeRails::RulesFind.new(klass: context.model_class,
+                                                             rule_context: "Update").rule_class
         end
       end
     end

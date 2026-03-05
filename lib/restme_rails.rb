@@ -60,8 +60,8 @@ module RestmeRails
   # the serialized response object.
   #
   # @return [Object] The result of the create execution
-  def restme_create(restme_create_custom_params: {})
-    restme_runner.restme_create(restme_create_custom_params: restme_create_custom_params)
+  def restme_create(custom_params: {})
+    restme_runner.restme_create(custom_params: custom_params)
   end
 
   # Returns the HTTP status symbol for the create action.
@@ -79,8 +79,8 @@ module RestmeRails
   # the serialized response object.
   #
   # @return [Object] The result of the update execution
-  def restme_update(restme_update_custom_params: {})
-    restme_runner.restme_update(restme_update_custom_params: restme_update_custom_params)
+  def restme_update(custom_params: {})
+    restme_runner.restme_update(custom_params: custom_params)
   end
 
   # Returns the HTTP status symbol for the update action.
@@ -122,7 +122,7 @@ module RestmeRails
   #
   # @return [Symbol]
   def restme_scope_status
-    restme_runner.restme_scope_status
+    restme_runner.scope_status
   end
 
   private

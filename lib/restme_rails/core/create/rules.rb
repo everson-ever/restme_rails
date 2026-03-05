@@ -45,19 +45,19 @@ module RestmeRails
         #    - The created instance
         #    - A normalized error hash
         #
-        # @param restme_create_custom_params [Hash]
+        # @param custom_params [Hash]
         #   Additional params merged into controller_params
         #
         # @return [ActiveRecord::Base, Hash]
-        def restme_create(restme_create_custom_params: {})
-          @restme_create ||= begin
-            @restme_create_custom_params = restme_create_custom_params
+        def create(custom_params: {})
+          @create ||= begin
+            @custom_params = custom_params
 
-            restme_create_set_current_user
+            create_set_current_user
 
-            restme_create_instance.save unless restme_create_instance.persisted?
+            create_instance.save unless create_instance.persisted?
 
-            restme_create_errors.presence || restme_create_instance
+            create_errors.presence || create_instance
           end
         end
 
@@ -65,19 +65,19 @@ module RestmeRails
         # based on whether errors exist.
         #
         # @return [Symbol]
-        def restme_create_status
-          restme_create_errors ? :unprocessable_content : :created
+        def create_status
+          create_errors ? :unprocessable_content : :created
         end
 
         private
 
         # Assigns current_user to the model instance
         # if the model defines `current_user=`.
-        def restme_create_set_current_user
+        def create_set_current_user
           return unless context.current_user
-          return unless restme_create_instance.respond_to?(:current_user)
+          return unless create_instance.respond_to?(:current_user)
 
-          restme_create_instance.current_user = context.current_user
+          create_instance.current_user = context.current_user
         end
 
         # Resolves error output depending on:
@@ -85,12 +85,12 @@ module RestmeRails
         # - Whether validation errors exist
         #
         # @return [Hash, nil]
-        def restme_create_errors
-          return unless restme_create_current_action
-          return restme_create_unscoped_errors unless restme_create_scope?
-          return if restme_create_instance.errors.blank?
+        def create_errors
+          return unless create_current_action
+          return create_unscoped_errors unless create_scope?
+          return if create_instance.errors.blank?
 
-          restme_create_active_record_errors
+          create_active_record_errors
         end
 
         # Instantiates the model using:
@@ -100,10 +100,10 @@ module RestmeRails
         # Memoized.
         #
         # @return [ActiveRecord::Base]
-        def restme_create_instance
-          @restme_create_instance ||= begin
+        def create_instance
+          @create_instance ||= begin
             params = context.controller_params_serialized
-            params = params.merge(@restme_create_custom_params) if @restme_create_custom_params.present?
+            params = params.merge(@custom_params) if @custom_params.present?
 
             context.model_class.new(params)
           end
@@ -112,7 +112,7 @@ module RestmeRails
         # Error returned when no scope rule allows the action.
         #
         # @return [Hash]
-        def restme_create_unscoped_errors
+        def create_unscoped_errors
           { errors: ["Unscoped"] }
         end
 
@@ -124,12 +124,12 @@ module RestmeRails
         #   "#{action}_#{role}_scope?"
         #
         # @return [Boolean]
-        def restme_create_scope?
+        def create_scope?
           return true unless context.current_user
 
-          restme_create_methods_scopes.any? do |method_scope|
-            restme_create_rules_class_instance.respond_to?(method_scope) &&
-              restme_create_rules_class_instance.public_send(method_scope)
+          create_methods_scopes.any? do |method_scope|
+            create_rules_class_instance.respond_to?(method_scope) &&
+              create_rules_class_instance.public_send(method_scope)
           end
         end
 
@@ -141,9 +141,9 @@ module RestmeRails
         #   create_user_scope?
         #
         # @return [Array<String>]
-        def restme_create_methods_scopes
-          @restme_create_methods_scopes ||= context.current_user_roles.map do |restme_role|
-            "#{restme_create_current_action}_#{restme_role}_scope?"
+        def create_methods_scopes
+          @create_methods_scopes ||= context.current_user_roles.map do |role|
+            "#{create_current_action}_#{role}_scope?"
           end
         end
 
@@ -151,20 +151,20 @@ module RestmeRails
         # inside RESTME_CREATE_ACTIONS_RULES.
         #
         # @return [Symbol, nil]
-        def restme_create_current_action
-          return unless restme_create_rules_class&.const_defined?(:RESTME_CREATE_ACTIONS_RULES)
+        def create_current_action
+          return unless create_rules_class&.const_defined?(:RESTME_CREATE_ACTIONS_RULES)
 
           context.action_name.presence_in(
-            restme_create_rules_class::RESTME_CREATE_ACTIONS_RULES
+            create_rules_class::RESTME_CREATE_ACTIONS_RULES
           )
         end
 
         # ActiveRecord error format for validation errors.
         #
         # @return [Hash]
-        def restme_create_active_record_errors
+        def create_active_record_errors
           {
-            errors: restme_create_instance.errors.messages
+            errors: create_instance.errors.messages
           }
         end
 
@@ -174,10 +174,10 @@ module RestmeRails
         #   (instance, current_user)
         #
         # @return [Object, nil]
-        def restme_create_rules_class_instance
-          @restme_create_rules_class_instance ||=
-            restme_create_rules_class&.new(
-              restme_create_instance,
+        def create_rules_class_instance
+          @create_rules_class_instance ||=
+            create_rules_class&.new(
+              create_instance,
               context.current_user
             )
         end
@@ -190,9 +190,9 @@ module RestmeRails
         # Uses safe_constantize to avoid raising errors.
         #
         # @return [Class, nil]
-        def restme_create_rules_class
-          @restme_create_rules_class ||= RestmeRails::RulesFind.new(klass: context.model_class,
-                                                                    rule_context: "Create").rule_class
+        def create_rules_class
+          @create_rules_class ||= RestmeRails::RulesFind.new(klass: context.model_class,
+                                                             rule_context: "Create").rule_class
         end
       end
     end

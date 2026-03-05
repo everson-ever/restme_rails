@@ -59,7 +59,8 @@ module RestmeRails
         def pagination_response
           @pagination_response ||= begin
             prepare_model_scope
-            scope_error_instance.restme_scope_errors.presence || restme_pagination_response
+
+            pagination_response_object
           end
         end
 
@@ -73,18 +74,23 @@ module RestmeRails
         def model_scope_object
           @model_scope_object ||= begin
             prepare_model_scope
-            scope_error_instance.restme_scope_errors.presence || model_scope.first
+
+            model_scope&.first
           end
         end
 
-        def restme_scope_status
-          scope_error_instance.restme_scope_status
+        def scope_status
+          scope_error_instance.scope_status
+        end
+
+        def scope_errors
+          scope_error_instance.scope_errors
         end
 
         private
 
         # Builds paginated response structure.
-        def restme_pagination_response
+        def pagination_response_object
           {
             objects: model_scope,
             pagination: pagination
@@ -109,7 +115,7 @@ module RestmeRails
               field_rules.unallowed_attachment_fields_errors
             ].freeze
 
-            scope_error_instance.restme_scope_errors
+            scope_error_instance.scope_errors
           end
         end
 
@@ -182,7 +188,7 @@ module RestmeRails
         # @return [Array<Symbol>]
         def user_scope_methods
           @user_scope_methods ||=
-            restme_methods_scopes.select do |method_scope|
+            methods_scopes.select do |method_scope|
               scope_rules_class_instance.respond_to?(method_scope)
             end
         end
@@ -207,9 +213,9 @@ module RestmeRails
         #   :admin -> "admin_scope"
         #
         # @return [Array<String>]
-        def restme_methods_scopes
-          @restme_methods_scopes ||= context.current_user_roles.map do |restme_role|
-            "#{restme_role}_scope"
+        def methods_scopes
+          @methods_scopes ||= context.current_user_roles.map do |role|
+            "#{role}_scope"
           end
         end
 
