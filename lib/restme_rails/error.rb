@@ -60,4 +60,6 @@ module RestmeRails
   #   HTTP 400 (Bad Request)
   #
   class MissingAttributeError < Error; end
+
+  class UnScopedError < Error; end
 end
