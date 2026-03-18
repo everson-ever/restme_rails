@@ -43,7 +43,7 @@ module RestmeRails
         def create(custom_params: {})
           build(custom_params:)
 
-          instance.save
+          instance.save unless errors
 
           errors || instance
         end
