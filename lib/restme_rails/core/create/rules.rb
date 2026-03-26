@@ -93,11 +93,17 @@ module RestmeRails
         # -----------------------------
 
         def errors
-          return unless scoped_action?
-          return unscoped_errors unless scope_allowed?
-          return if instance.errors.blank?
+          return @errors if defined?(@errors)
 
-          active_record_errors
+          @errors = if !scoped_action?
+                      nil
+                    elsif !scope_allowed?
+                      unscoped_errors
+                    elsif instance.valid?
+                      nil
+                    else
+                      active_record_errors
+                    end
         end
 
         def unscoped_errors
