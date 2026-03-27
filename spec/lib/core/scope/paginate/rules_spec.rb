@@ -110,5 +110,54 @@ RSpec.describe RestmeRails::Core::Scope::Paginate::Rules do
         )
       end
     end
+
+    context "when per_page is zero" do
+      let(:params) { { per_page: "0" } }
+
+      it { is_expected.to eq(true) }
+
+      it "sets scope status to :bad_request" do
+        errors
+        expect(scope_error_instance.scope_status).to eq(:bad_request)
+      end
+    end
+
+    context "when per_page is negative" do
+      let(:params) { { per_page: "-5" } }
+
+      it { is_expected.to eq(true) }
+
+      it "sets scope status to :bad_request" do
+        errors
+        expect(scope_error_instance.scope_status).to eq(:bad_request)
+      end
+    end
+
+    context "when page is zero" do
+      let(:params) { { page: "0" } }
+
+      it { is_expected.to eq(true) }
+
+      it "sets scope status to :bad_request" do
+        errors
+        expect(scope_error_instance.scope_status).to eq(:bad_request)
+      end
+
+      it "includes the invalid page in the error body" do
+        errors
+        expect(scope_error_instance.scope_errors.first[:body]).to include(page: 0)
+      end
+    end
+
+    context "when page is negative" do
+      let(:params) { { page: "-3" } }
+
+      it { is_expected.to eq(true) }
+
+      it "sets scope status to :bad_request" do
+        errors
+        expect(scope_error_instance.scope_status).to eq(:bad_request)
+      end
+    end
   end
 end

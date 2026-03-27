@@ -90,13 +90,18 @@ module RestmeRails
 
           # Serializes records and injects attachment URLs into each hash.
           #
+          # Only fields present in model_attachment_fields are dispatched via
+          # public_send, regardless of pipeline call order.
+          #
           # @param records [ActiveRecord::Relation]
           # @return [Array<Hash>]
           def serialize_with_attachments(records)
+            allowed_fields = attachment_fields_select & model_attachment_fields
+
             records.map do |record|
               base_hash = record.as_json(json_options)
 
-              attachment_fields_select.each do |field|
+              allowed_fields.each do |field|
                 attachment = record.public_send(field)
                 base_hash["#{field}_url"] = attachment&.attached? ? attachment.url : nil
               end

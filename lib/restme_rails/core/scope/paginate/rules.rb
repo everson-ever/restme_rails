@@ -64,10 +64,12 @@ module RestmeRails
             @total_items ||= user_scope.size
           end
 
-          # Validates per_page against maximum allowed value.
+          # Validates per_page and page_no against allowed bounds.
           #
-          # If per_page exceeds:
-          #   pagination_max_per_page
+          # Rejects:
+          #   - per_page <= 0 (negative or zero)
+          #   - per_page > pagination_max_per_page
+          #   - page_no <= 0 (negative or zero)
           #
           # Registers:
           # - Error message
@@ -75,10 +77,14 @@ module RestmeRails
           #
           # @return [Boolean, nil]
           def errors
-            return if per_page <= ::RestmeRails::Configuration.pagination_max_per_page
+            if per_page <= 0 || per_page > ::RestmeRails::Configuration.pagination_max_per_page
+              add_per_page_errors
+              return true
+            end
 
-            add_per_page_errors
+            return unless page_no <= 0
 
+            add_page_errors
             true
           end
 
@@ -110,6 +116,17 @@ module RestmeRails
                 body: {
                   per_page_max_value: ::RestmeRails::Configuration.pagination_max_per_page
                 }
+              }
+            )
+
+            scope_error_instance.add_status(:bad_request)
+          end
+
+          def add_page_errors
+            scope_error_instance.add_error(
+              {
+                message: "Invalid page value",
+                body: { page: page_no }
               }
             )
 
