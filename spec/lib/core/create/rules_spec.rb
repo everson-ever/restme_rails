@@ -32,9 +32,8 @@ RSpec.describe RestmeRails::Core::Create::Rules do
       it { is_expected.to eq({ errors: ["Unscoped"] }) }
     end
 
-    context "when action is scoped, allowed, and instance has no errors" do
-      let(:instance_errors) { instance_double(ActiveModel::Errors, blank?: true) }
-      let(:record) { instance_double(Product, errors: instance_errors) }
+    context "when action is scoped, allowed, and instance is valid" do
+      let(:record) { instance_double(Product, valid?: true) }
 
       before do
         allow(rules).to receive(:scoped_action?).and_return(true)
@@ -45,10 +44,10 @@ RSpec.describe RestmeRails::Core::Create::Rules do
       it { is_expected.to be_nil }
     end
 
-    context "when action is scoped, allowed, and instance has errors" do
+    context "when action is scoped, allowed, and instance is invalid" do
       let(:error_messages) { { name: ["can't be blank"] } }
-      let(:instance_errors) { instance_double(ActiveModel::Errors, blank?: false, messages: error_messages) }
-      let(:record) { instance_double(Product, errors: instance_errors) }
+      let(:instance_errors) { instance_double(ActiveModel::Errors, messages: error_messages) }
+      let(:record) { instance_double(Product, valid?: false, errors: instance_errors) }
 
       before do
         allow(rules).to receive(:scoped_action?).and_return(true)
@@ -71,10 +70,7 @@ RSpec.describe RestmeRails::Core::Create::Rules do
       end
 
       it "returns the same result on subsequent calls" do
-        first_call = rules.send(:errors)
-        second_call = rules.send(:errors)
-
-        expect(first_call).to eq(second_call)
+        expect(rules.send(:errors)).to eq(rules.send(:errors))
       end
     end
   end

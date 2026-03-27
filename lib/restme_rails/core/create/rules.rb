@@ -99,10 +99,8 @@ module RestmeRails
                       nil
                     elsif !scope_allowed?
                       unscoped_errors
-                    elsif instance.valid?
-                      nil
                     else
-                      active_record_errors
+                      instance.valid? ? nil : active_record_errors
                     end
         end
 

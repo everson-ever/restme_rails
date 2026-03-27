@@ -11,7 +11,7 @@ Style/StringLiteralsInInterpolation:
 
 Metrics/BlockLength:
   Exclude:
-    - spec/lib/restme_controller_spec.rb
+    - spec/**/*
     - spec/support/database.rb
 
 Metrics/ClassLength:
