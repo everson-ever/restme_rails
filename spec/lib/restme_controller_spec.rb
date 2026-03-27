@@ -687,6 +687,59 @@ RSpec.describe "RestmeController", type: :controller do
             end
           end
 
+          context "when nested_fields_select uses hash format to select specific fields" do
+            let(:query_parameters) do
+              {
+                nested_fields_select: { establishment: "id,name" },
+                id_sort: :asc
+              }
+            end
+
+            let(:expected_result) do
+              {
+                objects: [
+                  {
+                    id: product_a.id,
+                    name: "Bar",
+                    code: "ABC",
+                    quantity: nil,
+                    unit_id: nil,
+                    establishment_id: establishment.id,
+                    created_at: "2025-05-12T00:00:00.000Z",
+                    updated_at: "2025-05-12T00:00:00.000Z",
+                    establishment: {
+                      id: establishment.id,
+                      name: "Foo"
+                    }
+                  },
+                  {
+                    id: product_b.id,
+                    name: "Foo",
+                    code: "DEF",
+                    quantity: nil,
+                    unit_id: nil,
+                    establishment_id: establishment.id,
+                    created_at: "2025-05-12T00:00:00.000Z",
+                    updated_at: "2025-05-12T00:00:00.000Z",
+                    establishment: {
+                      id: establishment.id,
+                      name: "Foo"
+                    }
+                  }
+                ],
+                pagination: { page: 1, pages: 1, total_items: 2 }
+              }.as_json
+            end
+
+            it "returns only the selected fields from the nested association" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+
+            it "returns ok status" do
+              expect(products_controller.index[:status]).to eq(:ok)
+            end
+          end
+
           context "when have nested_fields not allowed to select" do
             let(:query_parameters) do
               {
@@ -883,7 +936,7 @@ RSpec.describe "RestmeController", type: :controller do
         end
 
         context "with attachment_fields_select" do
-          context "when have nested_fields not allowed to select" do
+          context "when attachment field is not declared in the model" do
             let(:query_parameters) do
               {
                 attachment_fields_select: "file"
@@ -898,8 +951,43 @@ RSpec.describe "RestmeController", type: :controller do
               expect(products_controller.index[:body]).to eq(expected_result.as_json)
             end
 
-            it "returns ok status" do
+            it "returns bad_request status" do
               expect(products_controller.index[:status]).to eq(:bad_request)
+            end
+          end
+
+          context "when attachment field is declared in the model" do
+            before do
+              allow(Product).to receive(:attachment_reflections)
+                .and_return({ "file" => double(name: :file) })
+              allow_any_instance_of(ActiveRecord::Relation).to receive(:includes) { |rel, _| rel }
+              allow_any_instance_of(Product).to receive(:file).and_return(double(attached?: false))
+            end
+
+            let(:query_parameters) do
+              {
+                attachment_fields_select: "file",
+                fields_select: "id",
+                id_sort: :asc
+              }
+            end
+
+            let(:expected_result) do
+              {
+                objects: [
+                  { id: product_a.id, file_url: nil },
+                  { id: product_b.id, file_url: nil }
+                ],
+                pagination: { page: 1, pages: 1, total_items: 2 }
+              }.as_json
+            end
+
+            it "returns products with attachment_url fields" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+
+            it "returns ok status" do
+              expect(products_controller.index[:status]).to eq(:ok)
             end
           end
         end
