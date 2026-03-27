@@ -169,7 +169,10 @@ RSpec.describe "RestmeController", type: :controller do
       end
 
       let(:expected_result) do
-        { objects: [{ id: 1 }, { id: 2 }], pagination: { page: 1, pages: 2, total_items: 3 } }.as_json
+        {
+          objects: [{ id: product_a.id }, { id: product_b.id }],
+          pagination: { page: 1, pages: 2, total_items: 3 }
+        }.as_json
       end
 
       it "rreturns success response" do
@@ -1854,6 +1857,150 @@ RSpec.describe "RestmeController", type: :controller do
                 expect(products_controller.index[:status]).to eq(:bad_request)
               end
             end
+          end
+        end
+      end
+
+      context "with NESTED filter" do
+        context "when field is declared in NESTED_FILTERABLE_FIELDS" do
+          context "with establishment[name_equal]" do
+            let(:query_parameters) do
+              {
+                establishment: { name_equal: establishment.name },
+                fields_select: "id,name"
+              }
+            end
+
+            let(:expected_result) do
+              {
+                objects: [
+                  { id: product_a.id, name: "Bar" },
+                  { id: product_b.id, name: "Foo" }
+                ],
+                pagination: {
+                  page: 1,
+                  pages: 1,
+                  total_items: 2
+                }
+              }.as_json
+            end
+
+            it "returns products belonging to that establishment" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+
+            it "returns ok status" do
+              expect(products_controller.index[:status]).to eq(:ok)
+            end
+          end
+
+          context "with establishment[name_equal] that matches no records" do
+            let(:query_parameters) do
+              {
+                establishment: { name_equal: "NonExistent" },
+                fields_select: "id,name"
+              }
+            end
+
+            let(:expected_result) do
+              {
+                objects: [],
+                pagination: {
+                  page: 1,
+                  pages: 0,
+                  total_items: 0
+                }
+              }.as_json
+            end
+
+            it "returns empty list" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+          end
+        end
+
+        context "when nested field is not declared in NESTED_FILTERABLE_FIELDS" do
+          context "with establishment[code_equal]" do
+            let(:query_parameters) do
+              {
+                establishment: { code_equal: "ABC" },
+                fields_select: "id,name"
+              }
+            end
+
+            it "returns unknown filter fields error" do
+              expect(products_controller.index[:body]).to eq(
+                [{ body: ["establishment[code_equal]"], message: "Unknown Filter Fields" }].as_json
+              )
+            end
+
+            it "returns bad request status" do
+              expect(products_controller.index[:status]).to eq(:bad_request)
+            end
+          end
+        end
+      end
+
+      context "with has_many NESTED filter" do
+        context "when product has multiple logs matching the filter" do
+          let(:query_parameters) do
+            {
+              product_logs: { content_equal: "important" },
+              fields_select: "id,name"
+            }
+          end
+
+          before do
+            product_a
+            product_b
+            ProductLog.create!(content: "important", product_id: product_a.id)
+            ProductLog.create!(content: "important", product_id: product_a.id)
+          end
+
+          let(:expected_result) do
+            {
+              objects: [
+                { id: product_a.id, name: "Bar" }
+              ],
+              pagination: {
+                page: 1,
+                pages: 1,
+                total_items: 1
+              }
+            }.as_json
+          end
+
+          it "returns the product only once despite having two matching logs" do
+            expect(products_controller.index[:body]).to eq(expected_result)
+          end
+
+          it "returns ok status" do
+            expect(products_controller.index[:status]).to eq(:ok)
+          end
+        end
+
+        context "when filtering by has_many field with no matches" do
+          let(:query_parameters) do
+            {
+              product_logs: { content_equal: "nonexistent" },
+              fields_select: "id,name"
+            }
+          end
+
+          before do
+            product_a
+            ProductLog.create!(content: "other content", product_id: product_a.id)
+          end
+
+          let(:expected_result) do
+            {
+              objects: [],
+              pagination: { page: 1, pages: 0, total_items: 0 }
+            }.as_json
+          end
+
+          it "returns empty list" do
+            expect(products_controller.index[:body]).to eq(expected_result)
           end
         end
       end

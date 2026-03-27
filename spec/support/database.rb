@@ -78,6 +78,11 @@ end
 class Product < ActiveRecord::Base
   FILTERABLE_FIELDS = %i[establishment_id name created_at].freeze
 
+  NESTED_FILTERABLE_FIELDS = {
+    establishment: %i[name],
+    product_logs: %i[content]
+  }.freeze
+
   SORTABLE_FIELDS = %i[name created_at].freeze
 
   belongs_to :establishment

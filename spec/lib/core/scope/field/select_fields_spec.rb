@@ -71,5 +71,23 @@ RSpec.describe RestmeRails::Core::Scope::Field::SelectFields do
       it { is_expected.to include("\"products\".\"name\"") }
       it { is_expected.not_to include("\"products\".\"code\"") }
     end
+
+    # Item 3: Rails qualifies column names with the table even when a JOIN is
+    # present. Both products and establishments have a "name" column — no
+    # PG::AmbiguousColumn error is raised and the SELECT stays unambiguous.
+    context "when a nested-filter JOIN is already on the scope" do
+      subject(:sql) { select_fields.process(Product.all.joins(:establishment)).to_sql }
+
+      let(:query_params) { { fields_select: "id,name" } }
+
+      it "qualifies id with the model table name" do
+        is_expected.to include("\"products\".\"id\"")
+      end
+
+      it "qualifies name with the model table name (not establishments.name)" do
+        is_expected.to include("\"products\".\"name\"")
+        is_expected.not_to match(/"establishments"\."name"/)
+      end
+    end
   end
 end

@@ -7,6 +7,7 @@ require_relative "types/less_than_filterable"
 require_relative "types/bigger_than_or_equal_to_filterable"
 require_relative "types/less_than_or_equal_to_filterable"
 require_relative "types/in_filterable"
+require_relative "nested_filterable"
 
 module RestmeRails
   module Core
@@ -24,10 +25,12 @@ module RestmeRails
         #   GET /products?name_equal=foo
         #   GET /products?price_bigger_than=10
         #   GET /products?email_like=gmail
+        #   GET /products?establishment[name_equal]=foo
         #
         # Format:
         #
         #   "#{field}_#{filter_type}"
+        #   "#{association}[#{field}_#{filter_type}]"
         #
         # ------------------------------------------------------------
         # Supported Filter Types
@@ -48,6 +51,7 @@ module RestmeRails
         # Only fields declared in:
         #
         #   Model::FILTERABLE_FIELDS
+        #   Model::NESTED_FILTERABLE_FIELDS
         #
         # are allowed.
         #
@@ -76,7 +80,7 @@ module RestmeRails
             in
           ].freeze
 
-          attr_reader :context, :scope_error_instance, :filters_serialized, :scope
+          attr_reader :context, :scope_error_instance, :filters_serialized, :nested_filters_serialized, :scope
 
           # @param context [RestmeRails::Context]
           # @param scope_error_instance [ScopeErrorHandler]
@@ -84,12 +88,14 @@ module RestmeRails
             @context = context
             @scope_error_instance = scope_error_instance
             @filters_serialized = {}
+            @nested_filters_serialized = {}
 
             # Pre insert id key when show action
             insert_id_key_on_show_actions
 
-            # Pre-serialize allowed filter fields
+            # Pre-serialize allowed filter fields (direct and nested)
             serialized_allowed_fields
+            serialize_nested_filters
           end
 
           # Applies filtering pipeline to the given ActiveRecord scope.
@@ -147,8 +153,44 @@ module RestmeRails
                 @scope = filter_instance.filter(@scope, @filters_serialized[filter_type])
               end
 
+              apply_nested_filters
+
               @scope
             end
+          end
+
+          # Applies nested association filters from @nested_filters_serialized.
+          #
+          # Each association is joined exactly once to avoid duplicate JOINs
+          # when the same association is filtered with multiple filter types.
+          #
+          # .distinct is added only for collection associations (has_many /
+          # has_and_belongs_to_many) where the JOIN would produce duplicate rows.
+          def apply_nested_filters
+            unique_nested_assocs.each do |assoc|
+              @scope = @scope.joins(assoc)
+              @scope = @scope.distinct if many_association?(assoc)
+            end
+
+            @nested_filters_serialized.each do |filter_type, assoc_fields|
+              assoc_fields.each do |assoc, fields|
+                @scope = nested_filterable_instance.apply_where(@scope, assoc, filter_type, fields)
+              end
+            end
+          end
+
+          # Unique associations that need to be joined.
+          #
+          # @return [Array<Symbol>]
+          def unique_nested_assocs
+            @nested_filters_serialized.values.flat_map(&:keys).uniq
+          end
+
+          # Returns true for has_many / habtm associations (collection).
+          #
+          # @return [Boolean]
+          def many_association?(assoc)
+            context.model_class.reflect_on_association(assoc)&.collection?
           end
 
           # ------------------------------------------------------------
@@ -185,6 +227,76 @@ module RestmeRails
             filters_serialized[filter_type][record_field] = param_value
           end
 
+          # Populates @nested_filters_serialized from hash-style params.
+          #
+          # Reads params in the format: ?association[field_filter_type]=value
+          # e.g. ?establishment[name_equal]=foo
+          #
+          # Only serializes fields declared in NESTED_FILTERABLE_FIELDS.
+          def serialize_nested_filters
+            nested_filterable_fields.each do |assoc, allowed_fields|
+              assoc_params = context.query_params[assoc]
+              next unless assoc_params.is_a?(Hash)
+
+              serialize_nested_assoc_filters(assoc, allowed_fields, assoc_params)
+            end
+          end
+
+          def serialize_nested_assoc_filters(assoc, allowed_fields, assoc_params)
+            assoc_params.each do |sub_key, value|
+              filter_type = extract_filter_type(sub_key)
+              next unless filter_type
+
+              field = sub_key.to_s.gsub(/_#{filter_type}$/, "").to_sym
+              next unless allowed_fields.include?(field)
+
+              add_nested_serialized_field(filter_type, assoc, field, value)
+            end
+          end
+
+          def add_nested_serialized_field(filter_type, assoc, field, value)
+            @nested_filters_serialized[filter_type] ||= {}
+            @nested_filters_serialized[filter_type][assoc] ||= {}
+            @nested_filters_serialized[filter_type][assoc][field] = value
+          end
+
+          # Detects hash params that look like nested filters but are not allowed.
+          #
+          # A param is considered a nested filter candidate when at least one of its
+          # sub-keys ends with a known filter type suffix.
+          #
+          # @return [Array<Symbol>]
+          def unserialized_nested_params
+            @unserialized_nested_params ||= [].tap do |unallowed|
+              context.query_params.each do |key, value|
+                next unless value.is_a?(Hash)
+
+                collect_unallowed_nested(key.to_sym, value, unallowed)
+              end
+            end
+          end
+
+          def collect_unallowed_nested(assoc, assoc_params, unallowed)
+            allowed_fields = nested_filterable_fields[assoc]
+
+            assoc_params.each_key do |sub_key|
+              filter_type = extract_filter_type(sub_key)
+              next unless filter_type
+
+              field = sub_key.to_s.gsub(/_#{filter_type}$/, "").to_sym
+              unallowed << :"#{assoc}[#{sub_key}]" unless allowed_fields&.include?(field)
+            end
+          end
+
+          # Returns nested filterable fields declared in the model.
+          #
+          # @return [Hash]
+          def nested_filterable_fields
+            @nested_filterable_fields ||= context.model_class::NESTED_FILTERABLE_FIELDS
+          rescue StandardError
+            {}
+          end
+
           # ------------------------------------------------------------
           # Validation & Security
           # ------------------------------------------------------------
@@ -202,11 +314,12 @@ module RestmeRails
 
           # Determines whether filtering should run.
           #
-          # Only applies to GET requests with filter params.
+          # Only applies to GET requests with filter params (flat or nested hash).
           #
           # @return [Boolean]
           def filterable_scope?
-            context.request.get? && controller_params_filters_fields.present?
+            context.request.get? &&
+              (controller_params_filters_fields.present? || @nested_filters_serialized.any?)
           end
 
           # Automatically injects id_equal filter if :id param exists.
@@ -231,10 +344,12 @@ module RestmeRails
 
           # Returns filter fields that were provided but not allowed.
           #
+          # Combines unrecognized flat fields and unrecognized nested params.
+          #
           # @return [Array<Symbol>]
           def unserialized_allowed_fields_to_filter
             @unserialized_allowed_fields_to_filter ||=
-              controller_params_filters_fields - serialized_allowed_fields
+              (controller_params_filters_fields - serialized_allowed_fields) + unserialized_nested_params
           end
 
           # Extracts valid filter params from query string.
@@ -276,6 +391,10 @@ module RestmeRails
 
           def equal_instance
             @equal_instance ||= Types::EqualFilterable.new(context: context)
+          end
+
+          def nested_filterable_instance
+            @nested_filterable_instance ||= NestedFilterable.new(context: context)
           end
         end
       end

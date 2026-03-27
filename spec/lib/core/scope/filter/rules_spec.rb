@@ -58,6 +58,40 @@ RSpec.describe RestmeRails::Core::Scope::Filter::Rules do
         expect { rules.process(Product.all) }.to raise_error(RestmeRails::RecordNotFoundError)
       end
     end
+
+    context "with nested filter on a belongs_to association" do
+      let(:query_params) { { establishment: { name_equal: "Foo" } } }
+
+      it { is_expected.to include("INNER JOIN") }
+      it { is_expected.to include("establishments.name = 'Foo'") }
+
+      it "does not add DISTINCT (belongs_to never duplicates rows)" do
+        is_expected.not_to include("DISTINCT")
+      end
+    end
+
+    context "with nested filter on a has_many association" do
+      let(:query_params) { { product_logs: { content_equal: "log" } } }
+
+      it { is_expected.to include("INNER JOIN") }
+      it { is_expected.to include("product_logs.content = 'log'") }
+
+      it "adds DISTINCT to prevent duplicate rows" do
+        is_expected.to include("DISTINCT")
+      end
+    end
+
+    context "when same association is filtered with two different filter types" do
+      # Both :equal and :like on the same :name field (declared in NESTED_FILTERABLE_FIELDS)
+      let(:query_params) { { establishment: { name_equal: "Foo", name_like: "oo" } } }
+
+      it "generates only one INNER JOIN for the association" do
+        expect(sql.scan("INNER JOIN").count).to eq(1)
+      end
+
+      it { is_expected.to include("establishments.name = 'Foo'") }
+      it { is_expected.to match(/ILIKE '%oo%'/) }
+    end
   end
 
   describe "#errors" do
@@ -93,6 +127,28 @@ RSpec.describe RestmeRails::Core::Scope::Filter::Rules do
 
     context "when no filter params are provided" do
       it { is_expected.to be_nil }
+    end
+
+    context "when nested filter field is declared in NESTED_FILTERABLE_FIELDS" do
+      let(:query_params) { { establishment: { name_equal: "Foo" } } }
+
+      it { is_expected.to be_nil }
+    end
+
+    context "when nested filter field is NOT declared in NESTED_FILTERABLE_FIELDS" do
+      let(:query_params) { { establishment: { code_equal: "ABC" } } }
+
+      it { is_expected.to eq(true) }
+
+      it "includes the undeclared nested field in the error body" do
+        errors
+        expect(scope_error_instance.scope_errors.first[:body]).to include(:"establishment[code_equal]")
+      end
+
+      it "sets scope status to :bad_request" do
+        errors
+        expect(scope_error_instance.scope_status).to eq(:bad_request)
+      end
     end
   end
 end

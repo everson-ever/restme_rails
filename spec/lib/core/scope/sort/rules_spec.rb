@@ -59,6 +59,23 @@ RSpec.describe RestmeRails::Core::Scope::Sort::Rules do
 
       it { expect(process.to_sql).to include('"products"."id" DESC') }
     end
+
+    # Item 4: Rails qualifies ORDER BY with the model table name even when a
+    # JOIN is present. Both products and establishments have a "name" column —
+    # no PG::AmbiguousColumn error is raised and the ORDER BY stays unambiguous.
+    context "when a nested-filter JOIN is already on the scope" do
+      subject(:process) { rules.process(Product.all.joins(:establishment)) }
+
+      let(:query_params) { { name_sort: "asc" } }
+
+      it "qualifies ORDER BY with the model table name" do
+        expect(process.to_sql).to include('"products"."name" ASC')
+      end
+
+      it "does not order by the joined table column" do
+        expect(process.to_sql).not_to match(/"establishments"\."name"/)
+      end
+    end
   end
 
   describe "#errors" do
