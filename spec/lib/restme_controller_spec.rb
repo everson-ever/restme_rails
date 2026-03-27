@@ -54,6 +54,12 @@ RSpec.describe "RestmeController", type: :controller do
         end
       end
 
+      after do
+        RestmeRails.configure do |config|
+          config.current_user_variable = :current_user
+        end
+      end
+
       let(:expected_result) do
         { objects: [], pagination: { page: 1, pages: 0, total_items: 0 } }.as_json
       end
@@ -71,6 +77,12 @@ RSpec.describe "RestmeController", type: :controller do
       before do
         RestmeRails.configure do |config|
           config.user_role_field = :user_role
+        end
+      end
+
+      after do
+        RestmeRails.configure do |config|
+          config.user_role_field = :role
         end
       end
 
@@ -188,53 +200,51 @@ RSpec.describe "RestmeController", type: :controller do
   describe "authorize rules" do
     context "when controller have current_user" do
       context "when user_role_field is a single string" do
-        context "when authorize rules class exists" do
-          context "when user can access controller action" do
-            context "when is super_admin" do
-              let(:user_role) { :super_admin }
-
-              let(:expected_result) do
-                { objects: [], pagination: { page: 1, pages: 0, total_items: 0 } }.as_json
-              end
-
-              it "rreturns success response" do
-                expect(products_controller.index[:body]).to eq(expected_result)
-              end
-
-              it "returns success status" do
-                expect(products_controller.index[:status]).to eq(:ok)
-              end
-            end
-
-            context "when is other authorized user" do
-              let(:expected_result) do
-                { objects: [], pagination: { page: 1, pages: 0, total_items: 0 } }.as_json
-              end
-
-              it "returns success response" do
-                expect(products_controller.index[:body]).to eq(expected_result)
-              end
-
-              it "returns success status" do
-                expect(products_controller.index[:status]).to eq(:ok)
-              end
-            end
-          end
-
-          context "when user can not access controller action" do
-            let(:user_role) { :other_role }
+        context "when user can access controller action" do
+          context "when is super_admin" do
+            let(:user_role) { :super_admin }
 
             let(:expected_result) do
-              [{ body: {}, message: "You are not allowed to access this resource" }].as_json
+              { objects: [], pagination: { page: 1, pages: 0, total_items: 0 } }.as_json
             end
 
-            it "returns forbidden response" do
+            it "rreturns success response" do
               expect(products_controller.index[:body]).to eq(expected_result)
             end
 
-            it "returns forbidden status" do
-              expect(products_controller.index[:status]).to eq(:forbidden)
+            it "returns success status" do
+              expect(products_controller.index[:status]).to eq(:ok)
             end
+          end
+
+          context "when is other authorized user" do
+            let(:expected_result) do
+              { objects: [], pagination: { page: 1, pages: 0, total_items: 0 } }.as_json
+            end
+
+            it "returns success response" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+
+            it "returns success status" do
+              expect(products_controller.index[:status]).to eq(:ok)
+            end
+          end
+        end
+
+        context "when user can not access controller action" do
+          let(:user_role) { :other_role }
+
+          let(:expected_result) do
+            [{ body: {}, message: "You are not allowed to access this resource" }].as_json
+          end
+
+          it "returns forbidden response" do
+            expect(products_controller.index[:body]).to eq(expected_result)
+          end
+
+          it "returns forbidden status" do
+            expect(products_controller.index[:status]).to eq(:forbidden)
           end
         end
       end
@@ -252,118 +262,114 @@ RSpec.describe "RestmeController", type: :controller do
           end
         end
 
-        context "when authorize rules class exists" do
-          context "when user can access controller action" do
-            before do
-              product_a
-              product_b
-              product_c
-              product_d
-            end
-
-            let(:query_parameters) do
-              {
-                fields_select: "id",
-                id_sort: :asc
-              }
-            end
-
-            context "when is manager/super_admin" do
-              before do
-                current_user.roles = %w[manager super_admin]
-              end
-
-              let(:expected_result) do
-                {
-                  objects: [
-                    { id: product_a.id },
-                    { id: product_b.id },
-                    { id: product_c.id },
-                    { id: product_d.id }
-                  ],
-                  pagination: { page: 1, pages: 1, total_items: 4 }
-                }.as_json
-              end
-
-              let(:expected_queries) do
-                [
-                  "SELECT DISTINCT \"products\".\"id\" FROM \"products\" ORDER BY \"products\".\"id\" " \
-                  "ASC LIMIT $1 OFFSET $2", "SELECT COUNT(DISTINCT \"products\".\"id\") FROM \"products\""
-                ]
-              end
-
-              it "returns success response" do
-                expect(products_controller.index[:body]).to eq(expected_result)
-              end
-
-              it "returns success status" do
-                expect(products_controller.index[:status]).to eq(:ok)
-              end
-
-              it do
-                expect { products_controller.index }.to execute_queries(expected_queries)
-              end
-            end
-
-            context "when is other authorized user" do
-              before do
-                current_user.roles = %w[manager]
-              end
-
-              let(:expected_result) do
-                {
-                  objects: [
-                    { id: product_a.id },
-                    { id: product_b.id },
-                    { id: product_c.id }
-                  ],
-                  pagination: { page: 1, pages: 1, total_items: 3 }
-                }.as_json
-              end
-
-              it "returns success response" do
-                expect(products_controller.index[:body]).to eq(expected_result)
-              end
-
-              it "returns success status" do
-                expect(products_controller.index[:status]).to eq(:ok)
-              end
-            end
+        context "when user can access controller action" do
+          before do
+            product_a
+            product_b
+            product_c
+            product_d
           end
 
-          context "when user can not access controller action" do
+          let(:query_parameters) do
+            {
+              fields_select: "id",
+              id_sort: :asc
+            }
+          end
+
+          context "when is manager/super_admin" do
             before do
-              current_user.roles = %i[moderator comum]
+              current_user.roles = %w[manager super_admin]
             end
 
             let(:expected_result) do
-              [{ body: {}, message: "You are not allowed to access this resource" }].as_json
+              {
+                objects: [
+                  { id: product_a.id },
+                  { id: product_b.id },
+                  { id: product_c.id },
+                  { id: product_d.id }
+                ],
+                pagination: { page: 1, pages: 1, total_items: 4 }
+              }.as_json
             end
 
-            it "returns forbidden response" do
+            let(:expected_queries) do
+              [
+                "SELECT DISTINCT \"products\".\"id\" FROM \"products\" ORDER BY \"products\".\"id\" " \
+                "ASC LIMIT $1 OFFSET $2", "SELECT COUNT(DISTINCT \"products\".\"id\") FROM \"products\""
+              ]
+            end
+
+            it "returns success response" do
               expect(products_controller.index[:body]).to eq(expected_result)
             end
 
-            it "returns forbidden status" do
-              expect(products_controller.index[:status]).to eq(:forbidden)
+            it "returns success status" do
+              expect(products_controller.index[:status]).to eq(:ok)
+            end
+
+            it do
+              expect { products_controller.index }.to execute_queries(expected_queries)
+            end
+          end
+
+          context "when is other authorized user" do
+            before do
+              current_user.roles = %w[manager]
+            end
+
+            let(:expected_result) do
+              {
+                objects: [
+                  { id: product_a.id },
+                  { id: product_b.id },
+                  { id: product_c.id }
+                ],
+                pagination: { page: 1, pages: 1, total_items: 3 }
+              }.as_json
+            end
+
+            it "returns success response" do
+              expect(products_controller.index[:body]).to eq(expected_result)
+            end
+
+            it "returns success status" do
+              expect(products_controller.index[:status]).to eq(:ok)
             end
           end
         end
-      end
 
-      context "when authorize rules class does not exists" do
-        context "when authorize rules does not exists" do
+        context "when user can not access controller action" do
+          before do
+            current_user.roles = %i[moderator comum]
+          end
+
           let(:expected_result) do
             [{ body: {}, message: "You are not allowed to access this resource" }].as_json
           end
 
           it "returns forbidden response" do
-            expect(settings_controller.index[:body]).to eq(expected_result)
+            expect(products_controller.index[:body]).to eq(expected_result)
           end
 
           it "returns forbidden status" do
-            expect(settings_controller.index[:status]).to eq(:forbidden)
+            expect(products_controller.index[:status]).to eq(:forbidden)
           end
+        end
+      end
+
+      context "when controller has no authorize action declared" do
+        let(:expected_result) do
+          [{ body: {}, message: "You are not allowed to access this resource" }].as_json
+        end
+
+        it "returns forbidden response" do
+          expect(settings_controller.index[:body]).to eq(expected_result)
+        end
+
+        it "returns forbidden status" do
+          expect(settings_controller.index[:status]).to eq(:forbidden)
         end
       end
     end
@@ -397,6 +403,60 @@ RSpec.describe "RestmeController", type: :controller do
         it "returns success status" do
           expect(products_controller.index[:status]).to eq(:ok)
         end
+      end
+    end
+  end
+
+  describe "restme_authorize_action DSL" do
+    let(:users_controller) do
+      UsersController.new(
+        params: controller_params,
+        request: request,
+        current_user: current_user
+      )
+    end
+
+    # UsersController declares:
+    #   restme_authorize_action :index,  %i[admin manager]
+    #   restme_authorize_action :create, %i[admin]
+
+    context "when user role is allowed by DSL" do
+      let(:user_role) { :admin }
+
+      it "grants access to index" do
+        expect(users_controller.index[:status]).to eq(:ok)
+      end
+
+      it "grants access to create" do
+        expect(users_controller.create[:status]).not_to eq(:forbidden)
+      end
+    end
+
+    context "when user role is not in DSL for the action" do
+      let(:user_role) { :manager }
+
+      it "grants access to index (manager is allowed)" do
+        expect(users_controller.index[:status]).to eq(:ok)
+      end
+
+      it "denies access to create (manager is not allowed)" do
+        expect(users_controller.create[:status]).to eq(:forbidden)
+      end
+    end
+
+    context "when user role is not in any DSL declaration" do
+      let(:user_role) { :client }
+
+      it "denies access to index" do
+        expect(users_controller.index[:status]).to eq(:forbidden)
+      end
+    end
+
+    context "when there is no current user" do
+      let(:current_user) { nil }
+
+      it "grants access regardless of DSL" do
+        expect(users_controller.index[:status]).to eq(:ok)
       end
     end
   end

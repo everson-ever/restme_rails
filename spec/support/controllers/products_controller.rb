@@ -3,6 +3,11 @@
 class ProductsController
   include RestmeRails
 
+  restme_authorize_action :index,  %i[super_admin client manager]
+  restme_authorize_action :show,   %i[super_admin client manager]
+  restme_authorize_action :create, %i[super_admin client manager]
+  restme_authorize_action :update, %i[super_admin client manager other]
+
   attr_accessor :params, :request, :current_user, :logged_user
   attr_reader :action_name
 

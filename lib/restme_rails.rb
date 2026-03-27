@@ -42,6 +42,43 @@ module RestmeRails
     end
   end
 
+  # Extends the including controller with class-level DSL methods.
+  #
+  # @param base [Class] the controller class including RestmeRails
+  def self.included(base)
+    base.extend(ClassMethods)
+  end
+
+  # Class-level DSL available on any controller that includes RestmeRails.
+  module ClassMethods
+    # Declares allowed roles for a specific controller action.
+    #
+    # Example:
+    #
+    #   class ProductsController < ApplicationController
+    #     include RestmeRails
+    #
+    #     restme_authorize_action :index,  %i[admin manager]
+    #     restme_authorize_action :create, %i[admin]
+    #     restme_authorize_action %i[index show create], %i[admin manager]
+    #   end
+    #
+    # @param actions [Symbol, String, Array<Symbol, String>]
+    # @param roles   [Array<Symbol>]
+    def restme_authorize_action(actions, roles)
+      Array(actions).each do |action|
+        restme_authorize_actions[action.to_sym] = Array(roles).map(&:to_sym)
+      end
+    end
+
+    # Returns the action → roles map declared on this controller class.
+    #
+    # @return [Hash{Symbol => Array<Symbol>}]
+    def restme_authorize_actions
+      @restme_authorize_actions ||= {}
+    end
+  end
+
   # ------------------------
   # Public API
   # ------------------------

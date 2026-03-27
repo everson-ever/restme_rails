@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../../rules_find"
-
 module RestmeRails
   module Core
     module Authorize
@@ -15,27 +13,22 @@ module RestmeRails
       #
       # 1. If there is no current user → access is allowed.
       # 2. If the current user's roles intersect with allowed roles
-      #    for the action → access is allowed.
+      #    declared via restme_authorize_action DSL → access is allowed.
       # 3. Otherwise → raises NotAuthorizedError.
       #
       # ------------------------------------------------------------
       # Expected Convention
       # ------------------------------------------------------------
       #
-      # A rules class may exist following the naming convention:
+      # Roles are declared on the controller class using the DSL:
       #
-      #   "#{ModelName}Rules::Authorize::Rules"
+      #   class ProductsController < ApplicationController
+      #     include RestmeRails
       #
-      # Example:
-      #
-      #   class ProductRules::Authorize::Rules
-      #     ALLOWED_ROLES_ACTIONS = {
-      #       index:  [:admin, :manager],
-      #       create: [:admin]
-      #     }
+      #     restme_authorize_action :index,  %i[admin manager]
+      #     restme_authorize_action :create, %i[admin]
+      #     restme_authorize_action %i[index show], %i[admin manager]
       #   end
-      #
-      # Each controller action maps to an array of allowed roles.
       #
       class Rules
         attr_reader :context
@@ -65,27 +58,11 @@ module RestmeRails
           allowed_roles_for_action.intersect?(context.current_user_roles)
         end
 
-        # Returns allowed roles for current action.
-        #
-        # If no rules class or constant exists, defaults to empty array.
+        # Returns allowed roles for current action from the controller DSL.
         #
         # @return [Array<Symbol>]
         def allowed_roles_for_action
-          return [] unless rules_class&.const_defined?(:ALLOWED_ROLES_ACTIONS)
-
-          rules_class::ALLOWED_ROLES_ACTIONS[context.action_name] || []
-        end
-
-        # Dynamically resolves authorization rules class.
-        #
-        # Uses RestmeRails::RulesFind to follow naming convention.
-        #
-        # @return [Class, nil]
-        def rules_class
-          @rules_class ||= RestmeRails::RulesFind.new(
-            klass: context.model_class,
-            rule_context: "Authorize"
-          ).rule_class
+          context.controller_class.restme_authorize_actions[context.action_name] || []
         end
       end
     end

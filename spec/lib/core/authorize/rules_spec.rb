@@ -3,10 +3,24 @@
 RSpec.describe RestmeRails::Core::Authorize::Rules do
   subject(:rules) { described_class.new(context:) }
 
+  let(:controller_class) do
+    Class.new do
+      extend RestmeRails::ClassMethods
+
+      restme_authorize_action :index,  %i[admin manager super_admin]
+      restme_authorize_action :create, %i[admin super_admin]
+    end
+  end
+
+  let(:bare_controller_class) do
+    Class.new { extend RestmeRails::ClassMethods }
+  end
+
   let(:context) do
     instance_double(
       RestmeRails::Context,
       model_class: Product,
+      controller_class: controller_class,
       action_name: action_name,
       current_user: current_user,
       current_user_roles: current_user_roles
@@ -26,14 +40,14 @@ RSpec.describe RestmeRails::Core::Authorize::Rules do
       it { is_expected.to eq(true) }
     end
 
-    context "when user role is allowed for the action" do
+    context "when user role matches the DSL declaration" do
       let(:action_name) { :index }
       let(:current_user_roles) { [:manager] }
 
       it { is_expected.to eq(true) }
     end
 
-    context "when user role is not allowed for the action" do
+    context "when user role does not match the DSL declaration" do
       let(:action_name) { :index }
       let(:current_user_roles) { [:unknown_role] }
 
@@ -54,11 +68,12 @@ RSpec.describe RestmeRails::Core::Authorize::Rules do
       it { is_expected.to eq(true) }
     end
 
-    context "when model has no authorize rules class" do
+    context "when the controller has no DSL declarations" do
       let(:context) do
         instance_double(
           RestmeRails::Context,
-          model_class: Setting,
+          model_class: Product,
+          controller_class: bare_controller_class,
           action_name: :index,
           current_user: current_user,
           current_user_roles: [:manager]
@@ -66,6 +81,30 @@ RSpec.describe RestmeRails::Core::Authorize::Rules do
       end
 
       it { expect { authorize! }.to raise_error(RestmeRails::NotAuthorizedError) }
+    end
+
+    context "with multiple actions declared at once" do
+      let(:controller_class) do
+        Class.new do
+          extend RestmeRails::ClassMethods
+
+          restme_authorize_action %i[index show create], %i[admin manager]
+        end
+      end
+
+      context "when user role matches" do
+        let(:action_name) { :show }
+        let(:current_user_roles) { [:manager] }
+
+        it { is_expected.to eq(true) }
+      end
+
+      context "when action is not in the declaration" do
+        let(:action_name) { :update }
+        let(:current_user_roles) { [:admin] }
+
+        it { expect { authorize! }.to raise_error(RestmeRails::NotAuthorizedError) }
+      end
     end
   end
 end

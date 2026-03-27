@@ -25,13 +25,6 @@ RSpec.describe RestmeRails::RulesFind do
       it { is_expected.to eq(ProductRules::Create::Rules) }
     end
 
-    context "when rule_context is given as a lowercase string" do
-      let(:klass) { Product }
-      let(:rule_context) { "authorize" }
-
-      it { is_expected.to eq(ProductRules::Authorize::Rules) }
-    end
-
     context "for the Scope context" do
       let(:klass) { Product }
       let(:rule_context) { "Scope" }

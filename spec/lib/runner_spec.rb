@@ -9,6 +9,7 @@ RSpec.describe RestmeRails::Runner do
     instance_double(
       RestmeRails::Context,
       model_class: Product,
+      controller_class: ProductsController,
       action_name: :index,
       current_user: user,
       current_user_roles: [:manager],
