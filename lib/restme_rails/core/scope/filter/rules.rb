@@ -1,12 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "types/equal_filterable"
-require_relative "types/like_filterable"
-require_relative "types/bigger_than_filterable"
-require_relative "types/less_than_filterable"
-require_relative "types/bigger_than_or_equal_to_filterable"
-require_relative "types/less_than_or_equal_to_filterable"
-require_relative "types/in_filterable"
+require_relative "filterable"
 require_relative "nested_filterable"
 
 module RestmeRails
@@ -148,9 +142,7 @@ module RestmeRails
               FILTERS_TYPES.each do |filter_type|
                 next unless @filters_serialized[filter_type]
 
-                filter_instance = send("#{filter_type}_instance")
-
-                @scope = filter_instance.filter(@scope, @filters_serialized[filter_type])
+                @scope = filterable_instance.filter(@scope, filter_type, @filters_serialized[filter_type])
               end
 
               apply_nested_filters
@@ -362,35 +354,11 @@ module RestmeRails
           end
 
           # ------------------------------------------------------------
-          # Filter Type Instances (Lazy)
+          # Filter Instances (Lazy)
           # ------------------------------------------------------------
 
-          def in_instance
-            @in_instance ||= Types::InFilterable.new(context: context)
-          end
-
-          def less_than_or_equal_to_instance
-            @less_than_or_equal_to_instance ||= Types::LessThanOrEqualToFilterable.new(context: context)
-          end
-
-          def bigger_than_or_equal_to_instance
-            @bigger_than_or_equal_to_instance ||= Types::BiggerThanOrEqualToFilterable.new(context: context)
-          end
-
-          def less_than_instance
-            @less_than_instance ||= Types::LessThanFilterable.new(context: context)
-          end
-
-          def bigger_than_instance
-            @bigger_than_instance ||= Types::BiggerThanFilterable.new(context: context)
-          end
-
-          def like_instance
-            @like_instance ||= Types::LikeFilterable.new(context: context)
-          end
-
-          def equal_instance
-            @equal_instance ||= Types::EqualFilterable.new(context: context)
+          def filterable_instance
+            @filterable_instance ||= Filterable.new(context: context)
           end
 
           def nested_filterable_instance
